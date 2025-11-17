@@ -25,10 +25,10 @@
 
 ## Превью:
 
-![Dashboard preview](./.github/screenshots/dashboard.png)
-![Docker preview](./.github/screenshots/docker.png)
-![Databases preview](./.github/screenshots/databases.png)
-![Queues preview](./.github/screenshots/queues.png)
+![Dashboard preview](./.github/screenshots/1.png)
+![Docker preview](./.github/screenshots/2.png)
+![Databases preview](./.github/screenshots/3.png)
+![Queues preview](./.github/screenshots/4.png)
 
 ## Структура
 ```

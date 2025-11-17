@@ -46,7 +46,7 @@ export default async function DashboardPage() {
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-primary">Сервис online</p>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Единая панель наблюдения</h1>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Dashboard</h1>
               <p className="text-sm text-muted-foreground">Данные из JSON · обновлено {updatedAt}</p>
             </div>
             <DashboardActions />
