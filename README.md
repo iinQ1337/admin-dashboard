@@ -25,10 +25,10 @@
 
 ## Превью:
 
-![Dashboard preview](./.github/screenshots/1.png)
-![Docker preview](./.github/screenshots/2.png)
-![Databases preview](./.github/screenshots/3.png)
-![Queues preview](./.github/screenshots/4.png)
+![Dashboard preview](https://github.com/iinQ1337/admin-dashboard/blob/main/screenshots/1.png)
+![Docker preview](https://github.com/iinQ1337/admin-dashboard/blob/main/screenshots/2.png)
+![Databases preview](https://github.com/iinQ1337/admin-dashboard/blob/main/screenshots/3.png)
+![Queues preview](https://github.com/iinQ1337/admin-dashboard/blob/main/screenshots/4.png)
 
 ## Структура
 ```
