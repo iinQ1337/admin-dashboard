@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Boxes, Database, LayoutDashboard } from "lucide-react";
+import { Boxes, Database, LayoutDashboard, Terminal, AlarmClock } from "lucide-react";
 
 export type DashboardNavLink = {
   label: string;
@@ -31,6 +31,12 @@ export const DASHBOARD_NAV_LINKS: DashboardNavLink[] = [
     label: "Queue Monitoring",
     href: "/queues",
     description: "Мониторинг очередей задач и рабочих процессов",
-    icon: Boxes
+    icon: AlarmClock
+  },
+  {
+    label: "Supervisor",
+    href: "/supervisor",
+    description: "Запуски внешних процессов и их логи",
+    icon: Terminal
   }
 ];
