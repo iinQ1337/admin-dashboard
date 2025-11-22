@@ -3,6 +3,13 @@ import path from "path";
 
 export type SupervisorStatus = "ok" | "error";
 
+export type ResourceUsage = {
+  cpuPercent: number | null;
+  memoryMb: number | null;
+  connections: number | null;
+  internetConnected: boolean | null;
+};
+
 export type SupervisorSnapshot = {
   name: string;
   startedAt: string | null;
@@ -10,10 +17,16 @@ export type SupervisorSnapshot = {
   durationSeconds: number | null;
   exitCode: number | null;
   error: string | null;
+  restartReason: string | null;
+  forcedStopReason: string | null;
+  restartCount: number | null;
+  pid: number | null;
+  lastActivityTs: number | string | null;
   command: string;
   workingDir: string | null;
   stdout: string[];
   stderr: string[];
+  resourceUsage: ResourceUsage | null;
   sourcePath: string;
 };
 
@@ -21,6 +34,8 @@ export type SupervisorSummary = {
   total: number;
   healthy: number;
   failed: number;
+  running: number;
+  restarts: number;
 };
 
 export type SupervisorData = {
@@ -45,8 +60,10 @@ export async function loadSupervisorData(): Promise<SupervisorData> {
 
   const summary: SupervisorSummary = {
     total: processes.length,
-    healthy: processes.filter((p) => (p.exitCode === 0 || p.exitCode === null) && !p.error).length,
-    failed: processes.filter((p) => (p.exitCode !== null && p.exitCode !== 0) || Boolean(p.error)).length
+    healthy: processes.filter((p) => (p.exitCode === 0 || p.exitCode === null) && !p.error && !p.forcedStopReason).length,
+    failed: processes.filter((p) => (p.exitCode !== null && p.exitCode !== 0) || Boolean(p.error || p.forcedStopReason)).length,
+    running: processes.filter((p) => p.exitCode === null && !p.error && !p.forcedStopReason).length,
+    restarts: processes.reduce((acc, p) => acc + (p.restartCount ?? 0), 0)
   };
 
   return { summary, processes: processes.sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? "")) };
@@ -109,6 +126,12 @@ function normalizeSnapshot(data: Record<string, unknown>, sourcePath: string): S
     Array.isArray(data.command) && data.command.every(isString)
       ? (data.command as string[])
       : [];
+  let lastActivity: number | string | null = null;
+  if (typeof data.last_activity_ts === "number") {
+    lastActivity = data.last_activity_ts;
+  } else if (typeof data.last_activity_ts === "string") {
+    lastActivity = data.last_activity_ts;
+  }
 
   return {
     name: stringOrNull(data.name) ?? "supervised-task",
@@ -117,11 +140,28 @@ function normalizeSnapshot(data: Record<string, unknown>, sourcePath: string): S
     durationSeconds: numberOrNull(data.duration_seconds),
     exitCode: numberOrNull(data.exit_code),
     error: stringOrNull(data.error),
+    restartReason: stringOrNull(data.restart_reason),
+    forcedStopReason: stringOrNull(data.forced_stop_reason),
+    restartCount: numberOrNull(data.restart_count),
+    pid: numberOrNull(data.pid),
+    lastActivityTs: lastActivity,
     workingDir: stringOrNull(data.working_dir),
     command: commandArray.length ? commandArray.join(" ") : stringOrNull(data.command as string) ?? "",
     stdout,
     stderr,
+    resourceUsage: normalizeResourceUsage(data.resource_usage),
     sourcePath
+  };
+}
+
+function normalizeResourceUsage(value: unknown): ResourceUsage | null {
+  if (!value || typeof value !== "object") return null;
+  const entry = value as Record<string, unknown>;
+  return {
+    cpuPercent: numberOrNull(entry.cpu_percent),
+    memoryMb: numberOrNull(entry.memory_mb),
+    connections: numberOrNull(entry.connections),
+    internetConnected: typeof entry.internet_connected === "boolean" ? entry.internet_connected : null
   };
 }
 

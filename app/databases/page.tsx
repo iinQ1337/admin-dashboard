@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { Activity, Database, HardDrive, ShieldAlert } from "lucide-react";
 
@@ -7,6 +8,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatusBadge, type StatusTone } from "@/components/dashboard/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   type DatabaseAlert,
   type DatabaseBackupJob,
@@ -46,9 +48,14 @@ export default async function DatabasesPage() {
                   Репликация, задержки чтения и расписания бэкапов. Обновлено {updatedAt}
                 </p>
               </div>
-              <StatusBadge tone="info" className="w-fit">
-                {data.summary.totalClusters} кластера · {data.summary.criticalAlerts} критических событий
-              </StatusBadge>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge tone="info" className="w-fit">
+                  {data.summary.totalClusters} кластера · {data.summary.criticalAlerts} критических событий
+                </StatusBadge>
+                <Button asChild variant="outline" size="sm">
+                    <Link href="/settings?tab=supervisor">Настройки базы данных</Link>
+                </Button>
+              </div>
             </div>
           </header>
 

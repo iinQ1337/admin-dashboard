@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { AlertCircle, Boxes, Cpu, Server } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { StatusBadge, type StatusTone } from "@/components/dashboard/status-badg
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { ContainerTable } from "@/components/docker/container-table";
 import { type DockerEvent, type DockerNode, loadDockerMonitoringData } from "@/lib/docker";
 
@@ -43,9 +45,14 @@ export default async function DockerPage() {
                   Контейнеры, Swarm-узлы и события кластера. Обновлено {updatedAt}
                 </p>
               </div>
-              <StatusBadge tone="info" className="w-fit">
-                {data.summary.runningContainers} активных контейнеров
-              </StatusBadge>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge tone="info" className="w-fit">
+                  {data.summary.runningContainers} активных контейнеров
+                </StatusBadge>
+                <Button asChild variant="outline" size="sm">
+                    <Link href="/settings?tab=supervisor">Настройки докера</Link>
+                </Button>
+              </div>
             </div>
           </header>
 

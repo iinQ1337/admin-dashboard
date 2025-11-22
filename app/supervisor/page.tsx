@@ -1,9 +1,11 @@
-import { AlertTriangle, Clock, FileText, Terminal } from "lucide-react";
+import Link from "next/link";
+import { Activity, AlertTriangle, Clock, FileText, Gauge, RefreshCw, Server, Terminal } from "lucide-react";
 
 import { AnimatedSection } from "@/components/dashboard/animated-section";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { loadSupervisorData } from "@/lib/supervisor";
@@ -25,40 +27,57 @@ export default async function SupervisorPage() {
                   Последние прогоны внешних процессов, stdout/stderr и exit-коды
                 </p>
               </div>
-              <StatusBadge tone={data.summary.failed ? "danger" : "success"} className="w-fit">
-                {data.summary.total} процессов · {data.summary.failed} с ошибками
-              </StatusBadge>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge tone={data.summary.failed ? "danger" : "success"} className="w-fit">
+                  {data.summary.total} процессов · {data.summary.failed} с ошибками
+                </StatusBadge>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/settings?tab=supervisor">Настройки супервизора</Link>
+                </Button>
+              </div>
             </div>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 md:grid-cols-4">
             <SummaryCard
-              icon={<Terminal className="h-4 w-4 text-primary" />}
+              icon={<Server className="h-4 w-4 text-primary" />}
               label="Всего процессов"
               value={data.summary.total}
-              helper={`${data.summary.healthy} успешных последних запусков`}
+              helper={`${data.summary.healthy} здоровых`}
+            />
+            <SummaryCard
+              icon={<Activity className="h-4 w-4 text-primary" />}
+              label="Активны"
+              value={data.summary.running}
+              helper="exit_code == null и без ошибок"
+              variant={data.summary.running ? "default" : "muted"}
             />
             <SummaryCard
               icon={<AlertTriangle className="h-4 w-4 text-primary" />}
               label="С ошибками"
               value={data.summary.failed}
-              helper="exit_code != 0 или runtime error"
+              helper="exit_code != 0 / force stop"
               variant={data.summary.failed ? "danger" : "muted"}
             />
             <SummaryCard
-              icon={<Clock className="h-4 w-4 text-primary" />}
-              label="Последние прогоны"
-              value={data.processes[0]?.startedAt ? new Date(data.processes[0].startedAt).toLocaleString("ru-RU") : "—"}
-              helper="По времени старта"
+              icon={<RefreshCw className="h-4 w-4 text-primary" />}
+              label="Всего рестартов"
+              value={data.summary.restarts}
+              helper="Сумма restart_count"
+              variant={data.summary.restarts ? "default" : "muted"}
             />
           </section>
 
           <div className="grid gap-4">
             {data.processes.map((proc) => {
               const isRunning = proc.exitCode === null && !proc.error;
-              const hasError = Boolean(proc.error) || (proc.exitCode !== null && proc.exitCode !== 0);
+              const hasError = Boolean(proc.error || proc.forcedStopReason) || (proc.exitCode !== null && proc.exitCode !== 0);
               const stdoutPreview = proc.stdout.slice(-5);
               const stderrPreview = proc.stderr.slice(-5);
+              const statusTone = hasError ? "danger" : isRunning ? "info" : "success";
+              const statusLabel = hasError ? "Ошибка / стоп" : isRunning ? "Работает" : "OK";
+              const resource = proc.resourceUsage;
+              const lastActivity = formatLastActivity(proc.lastActivityTs);
 
               return (
                 <Card key={`${proc.name}-${proc.sourcePath}`} className="overflow-hidden">
@@ -69,14 +88,15 @@ export default async function SupervisorPage() {
                           <Terminal className="h-4 w-4 text-primary" />
                           {proc.name}
                         </CardTitle>
-                        <StatusBadge tone={hasError ? "danger" : isRunning ? "info" : "success"}>
-                          {hasError ? "Ошибка" : isRunning ? "Работает" : "OK"}
+                        <StatusBadge tone={statusTone}>
+                          {statusLabel}
                         </StatusBadge>
                       </div>
-                      <CardDescription className="flex flex-wrap items-center gap-3 text-xs">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         <span>Команда: {proc.command || "—"}</span>
                         {proc.workingDir ? <Badge variant="outline">cwd: {proc.workingDir}</Badge> : null}
-                      </CardDescription>
+                        {proc.pid ? <Badge variant="outline">PID: {proc.pid}</Badge> : null}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
@@ -95,11 +115,59 @@ export default async function SupervisorPage() {
                       <Badge variant="outline">
                         длительность: {proc.durationSeconds != null ? `${proc.durationSeconds}s` : "—"}
                       </Badge>
+                      <Badge variant="outline" className="border-border/70 text-muted-foreground">
+                        рестартов: {proc.restartCount ?? 0}
+                      </Badge>
+                      {proc.restartReason ? (
+                        <Badge variant="outline" className="border-primary/50 text-primary">
+                          {proc.restartReason}
+                        </Badge>
+                      ) : null}
+                      {proc.forcedStopReason ? (
+                        <Badge variant="outline" className="border-destructive/70 text-destructive">
+                          {proc.forcedStopReason}
+                        </Badge>
+                      ) : null}
                       {proc.error ? (
                         <Badge variant="outline" className="border-destructive text-destructive">
                           {proc.error}
                         </Badge>
                       ) : null}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <MetricCard
+                        title="Ресурсы"
+                        icon={<Gauge className="h-4 w-4 text-primary" />}
+                        items={[
+                          { label: "CPU", value: resource?.cpuPercent != null ? `${resource.cpuPercent}%` : "—" },
+                          { label: "RAM", value: resource?.memoryMb != null ? `${resource.memoryMb} MB` : "—" },
+                          { label: "Conn", value: resource?.connections != null ? `${resource.connections}` : "—" }
+                        ]}
+                      />
+                      <MetricCard
+                        title="Сеть"
+                        icon={<Activity className="h-4 w-4 text-primary" />}
+                        items={[
+                          {
+                            label: "Интернет",
+                            value: (() => {
+                              const internet = resource?.internetConnected;
+                              if (internet === null || internet === undefined) return "—";
+                              return internet ? "online" : "offline";
+                            })()
+                          },
+                          { label: "Последняя активность", value: lastActivity }
+                        ]}
+                      />
+                      <MetricCard
+                        title="Логи"
+                        icon={<FileText className="h-4 w-4 text-primary" />}
+                        items={[
+                          { label: "stdout", value: `${stdoutPreview.length} строк` },
+                          { label: "stderr", value: `${stderrPreview.length} строк` }
+                        ]}
+                      />
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -212,4 +280,43 @@ function LogBlock({
       <Separator className="opacity-50" />
     </div>
   );
+}
+
+function MetricCard({
+  title,
+  icon,
+  items
+}: {
+  title: string;
+  icon: React.ReactNode;
+  items: { label: string; value: string }[];
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/50 p-4">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+        {icon}
+        <span>{title}</span>
+      </div>
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{item.label}</span>
+            <span className="font-medium text-foreground">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatLastActivity(value: string | number | null): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "number") {
+    return `t=${Math.round(value)}s`;
+  }
+  const date = new Date(value);
+  if (!isNaN(date.getTime())) {
+    return date.toLocaleTimeString("ru-RU");
+  }
+  return String(value);
 }

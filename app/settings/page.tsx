@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { Button } from "@/components/ui/button";
 
-export default function SettingsPage() {
+export default function SettingsPage({ searchParams }: { searchParams?: { tab?: string } }) {
   return (
     <main className="container space-y-6 py-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -18,7 +18,7 @@ export default function SettingsPage() {
           <Link href="/">Назад к панели</Link>
         </Button>
       </div>
-      <SettingsForm />
+      <SettingsForm initialTab={searchParams?.tab} />
     </main>
   );
 }

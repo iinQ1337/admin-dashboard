@@ -39,6 +39,52 @@ type ThemePreset = {
   description: string;
 };
 
+type SupervisorForm = {
+  enabled: boolean;
+  logDirectory: string;
+  healthcheck: {
+    enabled: boolean;
+    host: string;
+    port: number;
+  };
+  watchdog: {
+    enabled: boolean;
+    checkIntervalSec: number;
+    staleThresholdSec: number;
+  };
+  command: {
+    name: string;
+    executable: string;
+    args: string;
+    workingDir: string;
+    envText: string;
+    user: string;
+    group: string;
+  };
+  restartPolicy: {
+    mode: string;
+    restartDelaySeconds: number;
+    restartOnExit0: boolean;
+    maxRestartsPerMinute: number;
+    hangTimeoutSeconds: number;
+    hangCpuPercentThreshold: number;
+    restartOnHang: boolean;
+  };
+  resources: {
+    enabled: boolean;
+    sampleIntervalSec: number;
+    maxMemoryMb: number | "";
+    maxCpuPercent: number | "";
+    memoryLeakRestartMb: number | "";
+    networkCheckHost: string;
+    networkCheckTimeoutSec: number;
+  };
+  resourceLimits: {
+    memoryMb: number | "";
+    cpuSeconds: number | "";
+  };
+};
+
 type FormState = {
   notificationsEnabled: boolean;
   telegram: {
@@ -101,6 +147,7 @@ type FormState = {
       backupTimeoutSec: number;
     };
   };
+  supervisor: SupervisorForm;
   notes: string;
 };
 
@@ -172,6 +219,43 @@ Time: {{timestamp}}`,
       backupTimeoutSec: 120
     }
   },
+  supervisor: {
+    enabled: false,
+    logDirectory: "output/supervisor",
+    healthcheck: { enabled: false, host: "127.0.0.1", port: 8130 },
+    watchdog: { enabled: true, checkIntervalSec: 5, staleThresholdSec: 45 },
+    command: {
+      name: "supervised-task",
+      executable: "",
+      args: "",
+      workingDir: "",
+      envText: "",
+      user: "",
+      group: ""
+    },
+    restartPolicy: {
+      mode: "always",
+      restartDelaySeconds: 5,
+      restartOnExit0: true,
+      maxRestartsPerMinute: 10,
+      hangTimeoutSeconds: 60,
+      hangCpuPercentThreshold: 3,
+      restartOnHang: true
+    },
+    resources: {
+      enabled: true,
+      sampleIntervalSec: 2,
+      maxMemoryMb: 700,
+      maxCpuPercent: 90,
+      memoryLeakRestartMb: 128,
+      networkCheckHost: "8.8.8.8",
+      networkCheckTimeoutSec: 2
+    },
+    resourceLimits: {
+      memoryMb: 512,
+      cpuSeconds: 120
+    }
+  },
   notes: ""
 };
 
@@ -180,6 +264,7 @@ type SettingsResponse = {
   polling?: any;
   alerts?: any;
   dashboard?: any;
+  supervisor?: any;
 };
 
 const THEME_SEEDS = [
@@ -208,11 +293,13 @@ function createThemeSeed(index: number): ThemePreset {
   };
 }
 
-export function SettingsForm() {
+export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: string }) {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [tagInput, setTagInput] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "success" | "error">("loading");
   const [statusMessage, setStatusMessage] = useState("");
+  const allowedTabs = ["monitoring", "notifications", "supervisor", "ui"];
+  const defaultTab = allowedTabs.includes(initialTab || "") ? (initialTab as string) : "monitoring";
 
   useEffect(() => {
     async function loadSettings() {
@@ -345,16 +432,22 @@ export function SettingsForm() {
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
-      <Tabs defaultValue="core" className="space-y-6">
-        <TabsList className="grid w-full gap-2 rounded-xl bg-muted/40 p-1 sm:grid-cols-2">
-          <TabsTrigger value="core" className="rounded-lg">
-            Основные параметры
+      <Tabs defaultValue={defaultTab} className="space-y-6">
+        <TabsList className="grid w-full gap-2 rounded-xl bg-muted/40 p-1 sm:grid-cols-4">
+          <TabsTrigger value="monitoring" className="rounded-lg">
+            Мониторинг
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="rounded-lg">
+            Уведомления
+          </TabsTrigger>
+          <TabsTrigger value="supervisor" className="rounded-lg">
+            Supervisor
           </TabsTrigger>
           <TabsTrigger value="ui" className="rounded-lg">
             UI · только сайт
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="core" className="settings-tab-content">
+        <TabsContent value="monitoring" className="settings-tab-content">
           <fieldset disabled={disabled} className="space-y-6">
             <Card>
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -580,168 +673,9 @@ export function SettingsForm() {
                   }
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" /> Интеграции
-              </CardTitle>
-              <CardDescription>Telegram / Discord без прямого редактирования config.yaml</CardDescription>
-            </div>
-            <ToggleCard
-              label="Уведомления включены"
-              checked={form.notificationsEnabled}
-              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, notificationsEnabled: checked }))}
-            />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <IntegrationCard
-              title="Telegram"
-              enabled={form.telegram.enabled}
-              onToggle={(checked) =>
-                setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, enabled: checked } }))
-              }
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  id="telegramToken"
-                  label="Bot token"
-                  placeholder="123456789:ABCDEF..."
-                  value={form.telegram.botToken}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, botToken: event.target.value } }))
-                  }
-                />
-                <Field
-                  id="telegramChat"
-                  label="Chat / Channel ID"
-                  placeholder="@my_channel или -123456789"
-                  value={form.telegram.chatId}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, chatId: event.target.value } }))
-                  }
-                />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  id="parseMode"
-                  label="Parse mode"
-                  placeholder="Markdown"
-                  value={form.telegram.parseMode}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, parseMode: event.target.value } }))
-                  }
-                />
-                <div>
-                  <Label>События</Label>
-                  <div className="mt-2 grid gap-2">
-                    {TELEGRAM_EVENTS.map((option) => (
-                      <CheckboxRow
-                        key={option.value}
-                        label={option.label}
-                        checked={form.telegram.notifyOn.includes(option.value)}
-                        onCheckedChange={() => toggleNotify("telegram", option.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4">
-                <div>
-                  <Label htmlFor="tgTemplate">Шаблон сообщения</Label>
-                  <Textarea
-                    id="tgTemplate"
-                    value={form.telegram.messageTemplate}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        telegram: { ...prev.telegram, messageTemplate: event.target.value }
-                      }))
-                    }
-                  />
-                </div>
-                <Field
-                  id="tgInstructions"
-                  label="Доп. инструкции"
-                  placeholder="Добавить @devops..."
-                  value={form.telegram.extraInstructions}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      telegram: { ...prev.telegram, extraInstructions: event.target.value }
-                    }))
-                  }
-                />
-              </div>
-            </IntegrationCard>
-
-            <IntegrationCard
-              title="Discord"
-              enabled={form.discord.enabled}
-              onToggle={(checked) =>
-                setForm((prev) => ({ ...prev, discord: { ...prev.discord, enabled: checked } }))
-              }
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  id="discordWebhook"
-                  label="Webhook URL"
-                  placeholder="https://discord.com/api/webhooks/..."
-                  value={form.discord.webhookUrl}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, discord: { ...prev.discord, webhookUrl: event.target.value } }))
-                  }
-                />
-                <Field
-                  id="discordUsername"
-                  label="Имя бота"
-                  value={form.discord.username}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, discord: { ...prev.discord, username: event.target.value } }))
-                  }
-                />
-                <Field
-                  id="discordAvatar"
-                  label="Avatar URL"
-                  value={form.discord.avatarUrl}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, discord: { ...prev.discord, avatarUrl: event.target.value } }))
-                  }
-                />
-                <div>
-                  <Label>События</Label>
-                  <div className="mt-2 grid gap-2">
-                    {DISCORD_EVENTS.map((option) => (
-                      <CheckboxRow
-                        key={option.value}
-                        label={option.label}
-                        checked={form.discord.notifyOn.includes(option.value)}
-                        onCheckedChange={() => toggleNotify("discord", option.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="discordTemplate">Шаблон сообщения</Label>
-                <Textarea
-                  id="discordTemplate"
-                  value={form.discord.messageTemplate}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      discord: { ...prev.discord, messageTemplate: event.target.value }
-                    }))
-                  }
-                />
-              </div>
-            </IntegrationCard>
-          </CardContent>
-        </Card>
-
+            </CardContent>
+          </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -791,145 +725,877 @@ export function SettingsForm() {
             />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BellRing className="h-5 w-5 text-primary" /> Общие уведомления
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field
-              id="retryAttempts"
-              label="Повторных попыток"
-              type="number"
-              min={1}
-              value={form.common.retryAttempts}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  common: { ...prev.common, retryAttempts: Number(event.target.value) }
-                }))
-              }
-            />
-            <Field
-              id="timeoutSec"
-              label="Таймаут уведомления (сек)"
-              type="number"
-              min={1}
-              value={form.common.timeoutSec}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  common: { ...prev.common, timeoutSec: Number(event.target.value) }
-                }))
-              }
-            />
-            <ToggleRow
-              label="Не оповещать о восстановлении"
-              description="Соответствует `mute_when_recovering`"
-              checked={form.common.muteWhenRecovering}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({ ...prev, common: { ...prev.common, muteWhenRecovering: checked } }))
-              }
-            />
-            <ToggleRow
-              label="Добавлять теги в сообщение"
-              description="Соответствует `include_tags`"
-              checked={form.common.includeTags}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({ ...prev, common: { ...prev.common, includeTags: checked } }))
-              }
-            />
-            <div className="space-y-2">
-              <Label>Теги</Label>
-              <div className="flex flex-wrap gap-2">
-                {form.common.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1">
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="text-xs text-muted-foreground"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-                {!form.common.tags.length && <p className="text-xs text-muted-foreground">Теги пока не добавлены.</p>}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="prod-eu-west"
-                  value={tagInput}
-                  onChange={(event) => setTagInput(event.target.value)}
-                />
-                <Button type="button" variant="secondary" onClick={handleAddTag}>
-                  Добавить
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquareWarning className="h-5 w-5 text-primary" /> Триггеры уведомлений
-            </CardTitle>
-            <CardDescription>Секция `alerts` в config.yaml</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field
-              id="tlsDays"
-              label="Дней до истечения TLS"
-              type="number"
-              min={1}
-              value={form.alerts.tlsExpiryDays}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  alerts: { ...prev.alerts, tlsExpiryDays: Number(event.target.value) }
-                }))
-              }
-            />
-            <ToggleRow
-              label="Следить за чувствительными директориями"
-              description="notify_sensitive_exposure"
-              checked={form.alerts.notifySensitiveExposure}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({
-                  ...prev,
-                  alerts: { ...prev.alerts, notifySensitiveExposure: checked }
-                }))
-              }
-            />
-            <ToggleRow
-              label="Оповещать о сбоях API"
-              description="notify_api_failures"
-              checked={form.alerts.notifyApiFailures}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({
-                  ...prev,
-                  alerts: { ...prev.alerts, notifyApiFailures: checked }
-                }))
-              }
-            />
-            <ToggleRow
-              label="Сообщать о нагрузке сервера"
-              description="notify_server_load"
-              checked={form.alerts.notifyServerLoad}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({
-                  ...prev,
-                  alerts: { ...prev.alerts, notifyServerLoad: checked }
-                }))
-              }
-            />
-          </CardContent>
-        </Card>
           </fieldset>
         </TabsContent>
+        <TabsContent value="notifications" className="settings-tab-content">
+          <fieldset disabled={disabled} className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-primary" /> Интеграции
+                  </CardTitle>
+                  <CardDescription>Telegram / Discord без прямого редактирования config.yaml</CardDescription>
+                </div>
+                <ToggleCard
+                  label="Уведомления включены"
+                  checked={form.notificationsEnabled}
+                  onCheckedChange={(checked) => setForm((prev) => ({ ...prev, notificationsEnabled: checked }))}
+                />
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <IntegrationCard
+                  title="Telegram"
+                  enabled={form.telegram.enabled}
+                  onToggle={(checked) =>
+                    setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, enabled: checked } }))
+                  }
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      id="telegramToken"
+                      label="Bot token"
+                      placeholder="123456789:ABCDEF..."
+                      value={form.telegram.botToken}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, botToken: event.target.value } }))
+                      }
+                    />
+                    <Field
+                      id="telegramChat"
+                      label="Chat / Channel ID"
+                      placeholder="@my_channel или -123456789"
+                      value={form.telegram.chatId}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, chatId: event.target.value } }))
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      id="parseMode"
+                      label="Parse mode"
+                      placeholder="Markdown"
+                      value={form.telegram.parseMode}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, telegram: { ...prev.telegram, parseMode: event.target.value } }))
+                      }
+                    />
+                    <div>
+                      <Label>События</Label>
+                      <div className="mt-2 grid gap-2">
+                        {TELEGRAM_EVENTS.map((option) => (
+                          <CheckboxRow
+                            key={option.value}
+                            label={option.label}
+                            checked={form.telegram.notifyOn.includes(option.value)}
+                            onCheckedChange={() => toggleNotify("telegram", option.value)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label htmlFor="tgTemplate">Шаблон сообщения</Label>
+                      <Textarea
+                        id="tgTemplate"
+                        value={form.telegram.messageTemplate}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            telegram: { ...prev.telegram, messageTemplate: event.target.value }
+                          }))
+                        }
+                      />
+                    </div>
+                    <Field
+                      id="tgInstructions"
+                      label="Доп. инструкции"
+                      placeholder="Добавить @devops..."
+                      value={form.telegram.extraInstructions}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          telegram: { ...prev.telegram, extraInstructions: event.target.value }
+                        }))
+                      }
+                    />
+                  </div>
+                </IntegrationCard>
+
+                <IntegrationCard
+                  title="Discord"
+                  enabled={form.discord.enabled}
+                  onToggle={(checked) =>
+                    setForm((prev) => ({ ...prev, discord: { ...prev.discord, enabled: checked } }))
+                  }
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      id="discordWebhook"
+                      label="Webhook URL"
+                      placeholder="https://discord.com/api/webhooks/..."
+                      value={form.discord.webhookUrl}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, discord: { ...prev.discord, webhookUrl: event.target.value } }))
+                      }
+                    />
+                    <Field
+                      id="discordUsername"
+                      label="Имя бота"
+                      value={form.discord.username}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, discord: { ...prev.discord, username: event.target.value } }))
+                      }
+                    />
+                    <Field
+                      id="discordAvatar"
+                      label="Avatar URL"
+                      value={form.discord.avatarUrl}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, discord: { ...prev.discord, avatarUrl: event.target.value } }))
+                      }
+                    />
+                    <div>
+                      <Label>События</Label>
+                      <div className="mt-2 grid gap-2">
+                        {DISCORD_EVENTS.map((option) => (
+                          <CheckboxRow
+                            key={option.value}
+                            label={option.label}
+                            checked={form.discord.notifyOn.includes(option.value)}
+                            onCheckedChange={() => toggleNotify("discord", option.value)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="discordTemplate">Шаблон сообщения</Label>
+                    <Textarea
+                      id="discordTemplate"
+                      value={form.discord.messageTemplate}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          discord: { ...prev.discord, messageTemplate: event.target.value }
+                        }))
+                      }
+                    />
+                  </div>
+                </IntegrationCard>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BellRing className="h-5 w-5 text-primary" /> Общие уведомления
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field
+                  id="retryAttempts"
+                  label="Повторных попыток"
+                  type="number"
+                  min={1}
+                  value={form.common.retryAttempts}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      common: { ...prev.common, retryAttempts: Number(event.target.value) }
+                    }))
+                  }
+                />
+                <Field
+                  id="timeoutSec"
+                  label="Таймаут уведомления (сек)"
+                  type="number"
+                  min={1}
+                  value={form.common.timeoutSec}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      common: { ...prev.common, timeoutSec: Number(event.target.value) }
+                    }))
+                  }
+                />
+                <ToggleRow
+                  label="Не оповещать о восстановлении"
+                  description="Соответствует `mute_when_recovering`"
+                  checked={form.common.muteWhenRecovering}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, common: { ...prev.common, muteWhenRecovering: checked } }))
+                  }
+                />
+                <ToggleRow
+                  label="Добавлять теги в сообщение"
+                  description="Соответствует `include_tags`"
+                  checked={form.common.includeTags}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, common: { ...prev.common, includeTags: checked } }))
+                  }
+                />
+                <div className="space-y-2">
+                  <Label>Теги</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {form.common.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1">
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="text-xs text-muted-foreground"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                    {!form.common.tags.length && <p className="text-xs text-muted-foreground">Теги пока не добавлены.</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="prod-eu-west"
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                    />
+                    <Button type="button" variant="secondary" onClick={handleAddTag}>
+                      Добавить
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquareWarning className="h-5 w-5 text-primary" /> Триггеры уведомлений
+                </CardTitle>
+                <CardDescription>Секция `alerts` в config.yaml</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field
+                  id="tlsDays"
+                  label="Дней до истечения TLS"
+                  type="number"
+                  min={1}
+                  value={form.alerts.tlsExpiryDays}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      alerts: { ...prev.alerts, tlsExpiryDays: Number(event.target.value) }
+                    }))
+                  }
+                />
+                <ToggleRow
+                  label="Следить за чувствительными директориями"
+                  description="notify_sensitive_exposure"
+                  checked={form.alerts.notifySensitiveExposure}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      alerts: { ...prev.alerts, notifySensitiveExposure: checked }
+                    }))
+                  }
+                />
+                <ToggleRow
+                  label="Оповещать о сбоях API"
+                  description="notify_api_failures"
+                  checked={form.alerts.notifyApiFailures}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      alerts: { ...prev.alerts, notifyApiFailures: checked }
+                    }))
+                  }
+                />
+                <ToggleRow
+                  label="Сообщать о нагрузке сервера"
+                  description="notify_server_load"
+                  checked={form.alerts.notifyServerLoad}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      alerts: { ...prev.alerts, notifyServerLoad: checked }
+                    }))
+                  }
+                />
+              </CardContent>
+            </Card>
+          </fieldset>
+        </TabsContent>
+
+        <TabsContent value="supervisor" className="settings-tab-content">
+          <fieldset disabled={disabled} className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-primary" /> Мини-супервизор
+                  </CardTitle>
+                  <CardDescription>Настройки запуска процессов, watchdog и health-check API</CardDescription>
+                </div>
+                <ToggleCard
+                  label="Включить супервизор"
+                  checked={form.supervisor.enabled}
+                  onCheckedChange={(checked) => setForm((prev) => ({ ...prev, supervisor: { ...prev.supervisor, enabled: checked } }))}
+                />
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field
+                    id="supLogDir"
+                    label="Папка логов"
+                    placeholder="output/supervisor"
+                    value={form.supervisor.logDirectory}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: { ...prev.supervisor, logDirectory: event.target.value }
+                      }))
+                    }
+                  />
+                  <Field
+                    id="supCommand"
+                    label="Executable"
+                    placeholder="python / node / bash"
+                    value={form.supervisor.command.executable}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: {
+                          ...prev.supervisor,
+                          command: { ...prev.supervisor.command, executable: event.target.value }
+                        }
+                      }))
+                    }
+                  />
+                  <Field
+                    id="supArgs"
+                    label="Args (через пробел)"
+                    placeholder="-m app --flag"
+                    value={form.supervisor.command.args}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: { ...prev.supervisor, command: { ...prev.supervisor.command, args: event.target.value } }
+                      }))
+                    }
+                  />
+                  <Field
+                    id="supWorkingDir"
+                    label="Рабочая директория"
+                    placeholder="/opt/app"
+                    value={form.supervisor.command.workingDir}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: {
+                          ...prev.supervisor,
+                          command: { ...prev.supervisor.command, workingDir: event.target.value }
+                        }
+                      }))
+                    }
+                  />
+                  <Field
+                    id="supUser"
+                    label="Пользователь"
+                    placeholder="www-data"
+                    value={form.supervisor.command.user}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: {
+                          ...prev.supervisor,
+                          command: { ...prev.supervisor.command, user: event.target.value }
+                        }
+                      }))
+                    }
+                  />
+                  <Field
+                    id="supGroup"
+                    label="Группа"
+                    placeholder="www-data"
+                    value={form.supervisor.command.group}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: {
+                          ...prev.supervisor,
+                          command: { ...prev.supervisor.command, group: event.target.value }
+                        }
+                      }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="supEnv">Переменные окружения (KEY=VALUE, по строкам)</Label>
+                  <Textarea
+                    id="supEnv"
+                    value={form.supervisor.command.envText}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        supervisor: {
+                          ...prev.supervisor,
+                          command: { ...prev.supervisor.command, envText: event.target.value }
+                        }
+                      }))
+                    }
+                    placeholder={"APP_ENV=prod\nSECRET=123"}
+                    className="font-mono text-xs"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3 rounded-xl border bg-card/40 p-4">
+                    <p className="text-sm font-medium">Политика рестартов</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field
+                        id="supRestartMode"
+                        label="mode"
+                        placeholder="always/on-failure/never"
+                        value={form.supervisor.restartPolicy.mode}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: { ...prev.supervisor.restartPolicy, mode: event.target.value }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supRestartDelay"
+                        type="number"
+                        label="Задержка (сек)"
+                        min={0}
+                        value={form.supervisor.restartPolicy.restartDelaySeconds}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: {
+                                ...prev.supervisor.restartPolicy,
+                                restartDelaySeconds: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supMaxRestarts"
+                        type="number"
+                        label="max_restarts_per_minute"
+                        min={0}
+                        value={form.supervisor.restartPolicy.maxRestartsPerMinute}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: {
+                                ...prev.supervisor.restartPolicy,
+                                maxRestartsPerMinute: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supHangTimeout"
+                        type="number"
+                        label="hang_timeout_seconds"
+                        min={0}
+                        value={form.supervisor.restartPolicy.hangTimeoutSeconds}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: {
+                                ...prev.supervisor.restartPolicy,
+                                hangTimeoutSeconds: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supHangCpu"
+                        type="number"
+                        label="hang_cpu_percent_threshold"
+                        min={0}
+                        value={form.supervisor.restartPolicy.hangCpuPercentThreshold}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: {
+                                ...prev.supervisor.restartPolicy,
+                                hangCpuPercentThreshold: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <ToggleRow
+                        label="restart_on_exit_0"
+                        description="Перезапуск даже при exit 0"
+                        checked={form.supervisor.restartPolicy.restartOnExit0}
+                        onCheckedChange={(checked) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: { ...prev.supervisor.restartPolicy, restartOnExit0: checked }
+                            }
+                          }))
+                        }
+                      />
+                      <ToggleRow
+                        label="restart_on_hang"
+                        description="Перезапуск при зависании"
+                        checked={form.supervisor.restartPolicy.restartOnHang}
+                        onCheckedChange={(checked) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              restartPolicy: { ...prev.supervisor.restartPolicy, restartOnHang: checked }
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border bg-card/40 p-4">
+                    <p className="text-sm font-medium">Мониторинг ресурсов</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <ToggleRow
+                        label="sample_enabled"
+                        description="Включить сбор CPU/RAM/сеть"
+                        checked={form.supervisor.resources.enabled}
+                        onCheckedChange={(checked) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resources: { ...prev.supervisor.resources, enabled: checked }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supSample"
+                        type="number"
+                        label="sample_interval_sec"
+                        min={0.5}
+                        step={0.5}
+                        value={form.supervisor.resources.sampleIntervalSec}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resources: {
+                                ...prev.supervisor.resources,
+                                sampleIntervalSec: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supMaxMem"
+                        type="number"
+                        label="max_memory_mb"
+                        min={0}
+                        value={
+                          form.supervisor.resources.maxMemoryMb === ""
+                            ? ""
+                            : form.supervisor.resources.maxMemoryMb
+                        }
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resources: {
+                                ...prev.supervisor.resources,
+                                maxMemoryMb:
+                                  event.target.value === "" ? "" : Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supMaxCpu"
+                        type="number"
+                        label="max_cpu_percent"
+                        min={0}
+                        value={
+                          form.supervisor.resources.maxCpuPercent === ""
+                            ? ""
+                            : form.supervisor.resources.maxCpuPercent
+                        }
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resources: {
+                                ...prev.supervisor.resources,
+                                maxCpuPercent:
+                                  event.target.value === "" ? "" : Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supLeak"
+                        type="number"
+                        label="memory_leak_restart_mb"
+                        min={0}
+                        value={
+                          form.supervisor.resources.memoryLeakRestartMb === ""
+                            ? ""
+                            : form.supervisor.resources.memoryLeakRestartMb
+                        }
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resources: {
+                                ...prev.supervisor.resources,
+                                memoryLeakRestartMb:
+                                  event.target.value === "" ? "" : Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <div className="grid gap-3">
+                        <Field
+                          id="supNetworkHost"
+                          label="network_check_host"
+                          placeholder="8.8.8.8"
+                          value={form.supervisor.resources.networkCheckHost}
+                          onChange={(event) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              supervisor: {
+                                ...prev.supervisor,
+                                resources: {
+                                  ...prev.supervisor.resources,
+                                  networkCheckHost: event.target.value
+                                }
+                              }
+                            }))
+                          }
+                        />
+                        <Field
+                          id="supNetworkTimeout"
+                          type="number"
+                          label="network_check_timeout_sec"
+                          min={0}
+                          value={form.supervisor.resources.networkCheckTimeoutSec}
+                          onChange={(event) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              supervisor: {
+                                ...prev.supervisor,
+                                resources: {
+                                  ...prev.supervisor.resources,
+                                  networkCheckTimeoutSec: Number(event.target.value)
+                                }
+                              }
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-xl border bg-card/40 p-4">
+                    <p className="text-sm font-medium">Health-check API</p>
+                    <div className="grid gap-3">
+                      <ToggleRow
+                        label="healthcheck.enabled"
+                        description="host:port/health"
+                        checked={form.supervisor.healthcheck.enabled}
+                        onCheckedChange={(checked) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              healthcheck: { ...prev.supervisor.healthcheck, enabled: checked }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supHealthHost"
+                        label="Host"
+                        value={form.supervisor.healthcheck.host}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              healthcheck: { ...prev.supervisor.healthcheck, host: event.target.value }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supHealthPort"
+                        type="number"
+                        label="Port"
+                        min={1}
+                        value={form.supervisor.healthcheck.port}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              healthcheck: { ...prev.supervisor.healthcheck, port: Number(event.target.value) }
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-card/40 p-4">
+                    <p className="text-sm font-medium">Watchdog</p>
+                    <div className="grid gap-3">
+                      <ToggleRow
+                        label="watchdog.enabled"
+                        description="Self-heal супервизоров"
+                        checked={form.supervisor.watchdog.enabled}
+                        onCheckedChange={(checked) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              watchdog: { ...prev.supervisor.watchdog, enabled: checked }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supWatchInterval"
+                        type="number"
+                        label="check_interval_sec"
+                        min={1}
+                        value={form.supervisor.watchdog.checkIntervalSec}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              watchdog: {
+                                ...prev.supervisor.watchdog,
+                                checkIntervalSec: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supWatchStale"
+                        type="number"
+                        label="stale_threshold_sec"
+                        min={1}
+                        value={form.supervisor.watchdog.staleThresholdSec}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              watchdog: {
+                                ...prev.supervisor.watchdog,
+                                staleThresholdSec: Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-card/40 p-4">
+                    <p className="text-sm font-medium">Лимиты ресурсов (rlimit)</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field
+                        id="supLimitMem"
+                        type="number"
+                        label="memory_mb"
+                        min={0}
+                        value={
+                          form.supervisor.resourceLimits.memoryMb === ""
+                            ? ""
+                            : form.supervisor.resourceLimits.memoryMb
+                        }
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resourceLimits: {
+                                ...prev.supervisor.resourceLimits,
+                                memoryMb: event.target.value === "" ? "" : Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                      <Field
+                        id="supLimitCpu"
+                        type="number"
+                        label="cpu_seconds"
+                        min={0}
+                        value={
+                          form.supervisor.resourceLimits.cpuSeconds === ""
+                            ? ""
+                            : form.supervisor.resourceLimits.cpuSeconds
+                        }
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            supervisor: {
+                              ...prev.supervisor,
+                              resourceLimits: {
+                                ...prev.supervisor.resourceLimits,
+                                cpuSeconds: event.target.value === "" ? "" : Number(event.target.value)
+                              }
+                            }
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </fieldset>
+        </TabsContent>
+
         <TabsContent value="ui" className="settings-tab-content">
           <fieldset disabled={disabled} className="space-y-6">
             <Card>
@@ -970,8 +1636,8 @@ export function SettingsForm() {
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-dashed bg-card/40 p-4 text-sm text-muted-foreground">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <Settings2 className="h-4 w-4" />
-            Значения синхронизируются с секциями `notifications`, `polling`, `alerts` в config.yaml.
+          <Settings2 className="h-4 w-4" />
+            Значения синхронизируются с секциями `notifications`, `polling`, `alerts`, `dashboard`, `supervisor` в config.yaml.
           </div>
           {statusMessage && (
             <span
@@ -999,7 +1665,9 @@ function Field(props: React.ComponentProps<typeof Input> & { label: string }) {
   const { id, label, className, ...rest } = props;
   return (
     <div>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="break-words">
+        {label}
+      </Label>
       <Input id={id} className={className} {...rest} />
     </div>
   );
@@ -1178,7 +1846,46 @@ function hexToRgb(hex: string) {
   };
 }
 
+function envTextToObject(text: string): Record<string, string> {
+  const env: Record<string, string> = {};
+  text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const [key, ...rest] = line.split("=");
+      if (!key) return;
+      env[key.trim()] = rest.join("=").trim();
+    });
+  return env;
+}
+
+function envObjectToText(env: any): string {
+  if (!env || typeof env !== "object") return "";
+  return Object.entries(env)
+    .map(([key, value]) => `${key}=${value ?? ""}`)
+    .join("\n");
+}
+
+function argsToString(args: unknown): string {
+  if (Array.isArray(args)) {
+    return args.filter((item) => typeof item === "string").join(" ");
+  }
+  if (typeof args === "string") return args;
+  return "";
+}
+
+function numOrEmpty(value: any): number | "" {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : "";
+}
+
 function buildPayload(form: FormState) {
+  const supervisor = form.supervisor;
+  const argsArray = supervisor.command.args.trim()
+    ? supervisor.command.args.trim().split(/\s+/)
+    : [];
+  const envObject = envTextToObject(supervisor.command.envText);
   return {
     notifications: {
       enabled: form.notificationsEnabled,
@@ -1252,6 +1959,52 @@ function buildPayload(form: FormState) {
         description: theme.description
       })),
       active_theme_id: form.dashboard.activeThemeId
+    },
+    supervisor: {
+      enabled: supervisor.enabled,
+      log_directory: supervisor.logDirectory,
+      healthcheck: {
+        enabled: supervisor.healthcheck.enabled,
+        host: supervisor.healthcheck.host,
+        port: supervisor.healthcheck.port
+      },
+      watchdog: {
+        enabled: supervisor.watchdog.enabled,
+        check_interval_sec: supervisor.watchdog.checkIntervalSec,
+        stale_threshold_sec: supervisor.watchdog.staleThresholdSec
+      },
+      command: {
+        name: supervisor.command.name,
+        executable: supervisor.command.executable,
+        args: argsArray,
+        working_dir: supervisor.command.workingDir || null,
+        env: envObject,
+        user: supervisor.command.user || null,
+        group: supervisor.command.group || null,
+        resource_limits: {
+          memory_mb: supervisor.resourceLimits.memoryMb === "" ? null : supervisor.resourceLimits.memoryMb,
+          cpu_seconds: supervisor.resourceLimits.cpuSeconds === "" ? null : supervisor.resourceLimits.cpuSeconds
+        },
+        resource_monitoring: {
+          enabled: supervisor.resources.enabled,
+          sample_interval_sec: supervisor.resources.sampleIntervalSec,
+          max_memory_mb: supervisor.resources.maxMemoryMb === "" ? null : supervisor.resources.maxMemoryMb,
+          max_cpu_percent: supervisor.resources.maxCpuPercent === "" ? null : supervisor.resources.maxCpuPercent,
+          memory_leak_restart_mb:
+            supervisor.resources.memoryLeakRestartMb === "" ? null : supervisor.resources.memoryLeakRestartMb,
+          network_check_host: supervisor.resources.networkCheckHost,
+          network_check_timeout_sec: supervisor.resources.networkCheckTimeoutSec
+        }
+      },
+      restart_policy: {
+        mode: supervisor.restartPolicy.mode,
+        restart_delay_seconds: supervisor.restartPolicy.restartDelaySeconds,
+        restart_on_exit_0: supervisor.restartPolicy.restartOnExit0,
+        max_restarts_per_minute: supervisor.restartPolicy.maxRestartsPerMinute,
+        hang_timeout_seconds: supervisor.restartPolicy.hangTimeoutSeconds,
+        hang_cpu_percent_threshold: supervisor.restartPolicy.hangCpuPercentThreshold,
+        restart_on_hang: supervisor.restartPolicy.restartOnHang
+      }
     }
   };
 }
@@ -1268,6 +2021,16 @@ function mapConfigToForm(data?: SettingsResponse | null): FormState {
   const databasesStream = dashboard?.databases_stream ?? {};
   const dbThresholds = databasesStream?.thresholds ?? {};
   const siteHistory = dashboard?.site_history ?? {};
+  const supervisorCfg = data?.supervisor ?? {};
+  const supervisorCommand = supervisorCfg?.command ?? {};
+  const restartPolicy = supervisorCfg?.restart_policy ?? {};
+  const resourceMonitoring =
+    supervisorCommand?.resource_monitoring ?? supervisorCommand?.resources ?? {};
+  const resourceLimits = supervisorCommand?.resource_limits ?? {};
+  const supHealth = supervisorCfg?.healthcheck ?? {};
+  const supWatchdog = supervisorCfg?.watchdog ?? {};
+  const supArgs = argsToString(supervisorCommand?.args);
+  const supEnvText = envObjectToText(supervisorCommand?.env);
   const configThemes = Array.isArray(dashboard?.themes)
     ? (dashboard.themes as any[]).map((theme, index) => ({
         id: theme?.id ?? generateThemeId(),
@@ -1354,6 +2117,101 @@ function mapConfigToForm(data?: SettingsResponse | null): FormState {
           dbThresholds.replication_lag_ms ?? DEFAULT_FORM.streams.databases.replicationLagWarnMs,
         storageWarnPercent:
           dbThresholds.storage_percent ?? DEFAULT_FORM.streams.databases.storageWarnPercent
+      }
+    },
+    supervisor: {
+      enabled: supervisorCfg.enabled ?? DEFAULT_FORM.supervisor.enabled,
+      logDirectory: supervisorCfg.log_directory ?? supervisorCfg.logDirectory ?? DEFAULT_FORM.supervisor.logDirectory,
+      healthcheck: {
+        enabled: supHealth.enabled ?? DEFAULT_FORM.supervisor.healthcheck.enabled,
+        host: supHealth.host ?? DEFAULT_FORM.supervisor.healthcheck.host,
+        port: supHealth.port ?? DEFAULT_FORM.supervisor.healthcheck.port
+      },
+      watchdog: {
+        enabled: supWatchdog.enabled ?? DEFAULT_FORM.supervisor.watchdog.enabled,
+        checkIntervalSec:
+          supWatchdog.check_interval_sec ??
+          supWatchdog.checkIntervalSec ??
+          DEFAULT_FORM.supervisor.watchdog.checkIntervalSec,
+        staleThresholdSec:
+          supWatchdog.stale_threshold_sec ??
+          supWatchdog.staleThresholdSec ??
+          DEFAULT_FORM.supervisor.watchdog.staleThresholdSec
+      },
+      command: {
+        name: supervisorCfg.name ?? DEFAULT_FORM.supervisor.command.name,
+        executable: supervisorCommand.executable ?? DEFAULT_FORM.supervisor.command.executable,
+        args: supArgs || DEFAULT_FORM.supervisor.command.args,
+        workingDir: supervisorCommand.working_dir ?? supervisorCommand.workingDir ?? DEFAULT_FORM.supervisor.command.workingDir,
+        envText: supEnvText,
+        user: supervisorCommand.user ?? DEFAULT_FORM.supervisor.command.user,
+        group: supervisorCommand.group ?? DEFAULT_FORM.supervisor.command.group
+      },
+      restartPolicy: {
+        mode: restartPolicy.mode ?? DEFAULT_FORM.supervisor.restartPolicy.mode,
+        restartDelaySeconds:
+          restartPolicy.restart_delay_seconds ??
+          restartPolicy.restartDelaySeconds ??
+          DEFAULT_FORM.supervisor.restartPolicy.restartDelaySeconds,
+        restartOnExit0:
+          restartPolicy.restart_on_exit_0 ??
+          restartPolicy.restartOnExit0 ??
+          DEFAULT_FORM.supervisor.restartPolicy.restartOnExit0,
+        maxRestartsPerMinute:
+          restartPolicy.max_restarts_per_minute ??
+          restartPolicy.maxRestartsPerMinute ??
+          DEFAULT_FORM.supervisor.restartPolicy.maxRestartsPerMinute,
+        hangTimeoutSeconds:
+          restartPolicy.hang_timeout_seconds ??
+          restartPolicy.hangTimeoutSeconds ??
+          DEFAULT_FORM.supervisor.restartPolicy.hangTimeoutSeconds,
+        hangCpuPercentThreshold:
+          restartPolicy.hang_cpu_percent_threshold ??
+          restartPolicy.hangCpuPercentThreshold ??
+          DEFAULT_FORM.supervisor.restartPolicy.hangCpuPercentThreshold,
+        restartOnHang:
+          restartPolicy.restart_on_hang ??
+          restartPolicy.restartOnHang ??
+          DEFAULT_FORM.supervisor.restartPolicy.restartOnHang
+      },
+      resources: {
+        enabled: resourceMonitoring.enabled ?? DEFAULT_FORM.supervisor.resources.enabled,
+        sampleIntervalSec:
+          resourceMonitoring.sample_interval_sec ??
+          resourceMonitoring.sampleIntervalSec ??
+          DEFAULT_FORM.supervisor.resources.sampleIntervalSec,
+        maxMemoryMb: (() => {
+          const val = numOrEmpty(resourceMonitoring.max_memory_mb ?? resourceMonitoring.maxMemoryMb);
+          return val === "" ? DEFAULT_FORM.supervisor.resources.maxMemoryMb : val;
+        })(),
+        maxCpuPercent: (() => {
+          const val = numOrEmpty(resourceMonitoring.max_cpu_percent ?? resourceMonitoring.maxCpuPercent);
+          return val === "" ? DEFAULT_FORM.supervisor.resources.maxCpuPercent : val;
+        })(),
+        memoryLeakRestartMb: (() => {
+          const val = numOrEmpty(
+            resourceMonitoring.memory_leak_restart_mb ?? resourceMonitoring.memoryLeakRestartMb
+          );
+          return val === "" ? DEFAULT_FORM.supervisor.resources.memoryLeakRestartMb : val;
+        })(),
+        networkCheckHost:
+          resourceMonitoring.network_check_host ??
+          resourceMonitoring.networkCheckHost ??
+          DEFAULT_FORM.supervisor.resources.networkCheckHost,
+        networkCheckTimeoutSec:
+          resourceMonitoring.network_check_timeout_sec ??
+          resourceMonitoring.networkCheckTimeoutSec ??
+          DEFAULT_FORM.supervisor.resources.networkCheckTimeoutSec
+      },
+      resourceLimits: {
+        memoryMb: (() => {
+          const val = numOrEmpty(resourceLimits.memory_mb ?? resourceLimits.memoryMb);
+          return val === "" ? DEFAULT_FORM.supervisor.resourceLimits.memoryMb : val;
+        })(),
+        cpuSeconds: (() => {
+          const val = numOrEmpty(resourceLimits.cpu_seconds ?? resourceLimits.cpuSeconds);
+          return val === "" ? DEFAULT_FORM.supervisor.resourceLimits.cpuSeconds : val;
+        })()
       }
     },
     notes: DEFAULT_FORM.notes

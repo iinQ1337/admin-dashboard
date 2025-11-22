@@ -34,8 +34,8 @@ export function SensitivePathsPanel({ data }: { data: SensitivePathsCheck }) {
         </div>
         <ScrollArea className="h-[260px] pr-4">
           <div className="space-y-3">
-            {data.results.map((item) => (
-              <div key={item.url} className="rounded-xl border bg-card/60 p-4 text-sm">
+            {data.results.map((item, index) => (
+              <div key={`${item.url}-${index}`} className="rounded-xl border bg-card/60 p-4 text-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{item.path}</p>

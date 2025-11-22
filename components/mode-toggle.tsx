@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,22 +26,25 @@ const ICON_VARIANTS = {
 
 export function ModeToggle() {
   const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const currentTheme = theme ?? "system";
+  const isDark = mounted && theme === "dark";
+  const iconKey = isDark ? "moon" : "sun";
+  const IconComponent = isDark ? Moon : Sun;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-border/80">
           <AnimatePresence mode="wait" initial={false}>
-            {theme === "dark" ? (
-              <motion.span key="moon" {...ICON_VARIANTS}>
-                <Moon className="h-4 w-4" />
-              </motion.span>
-            ) : (
-              <motion.span key="sun" {...ICON_VARIANTS}>
-                <Sun className="h-4 w-4" />
-              </motion.span>
-            )}
+            <motion.span key={iconKey} {...ICON_VARIANTS}>
+              <IconComponent className="h-4 w-4" />
+            </motion.span>
           </AnimatePresence>
           <span className="sr-only">Переключить тему</span>
         </Button>
