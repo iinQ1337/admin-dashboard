@@ -6,7 +6,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import "./globals.css";
+import { GlobalToolbar } from "@/components/global-toolbar";
+import { LanguageProvider } from "@/components/language-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { resolveLocale } from "@/lib/i18n-server";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
@@ -30,12 +33,13 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = resolveLocale();
   const activeTheme = await loadActiveDashboardTheme();
   const bodyStyle = activeTheme ? buildThemeStyle(activeTheme) : undefined;
   const providerTheme = activeTheme?.mode ?? "system";
 
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={cn("min-h-screen bg-background font-sans antialiased theme-transition", inter.className)}
         data-theme-id={activeTheme?.id ?? undefined}
@@ -43,7 +47,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         style={bodyStyle}
       >
         <ThemeProvider attribute="class" defaultTheme={providerTheme} enableSystem>
-          {children}
+          <LanguageProvider initialLocale={locale}>
+            <GlobalToolbar />
+            {children}
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

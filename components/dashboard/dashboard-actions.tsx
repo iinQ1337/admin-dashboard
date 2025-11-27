@@ -4,12 +4,14 @@ import { useState } from "react";
 import { Settings, Settings2, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { useTranslations } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ConfigEditorDialog } from "./config-editor-dialog";
 
 export function DashboardActions() {
+  const t = useTranslations();
   const router = useRouter();
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -22,7 +24,7 @@ export function DashboardActions() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2">
-              <Settings2 className="h-4 w-4" /> Настройки
+              <Settings2 className="h-4 w-4" /> {t("Настройки", "Settings")}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
@@ -33,7 +35,7 @@ export function DashboardActions() {
                 openEditor();
               }}
             >
-              <Pencil className="h-4 w-4" /> Редактировать config.yaml
+              <Pencil className="h-4 w-4" /> {t("Редактировать config.yaml", "Edit config.yaml")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2"
@@ -42,7 +44,7 @@ export function DashboardActions() {
                 router.push("/settings");
               }}
             >
-              <Settings className="h-4 w-4" /> Открыть настройки
+              <Settings className="h-4 w-4" /> {t("Открыть настройки", "Open settings")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

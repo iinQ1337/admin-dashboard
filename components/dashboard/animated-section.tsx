@@ -1,6 +1,6 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ const fade = {
   show: { opacity: 1, y: 0 }
 };
 
-type AnimatedSectionProps = HTMLAttributes<HTMLElement> & {
+type AnimatedSectionProps = ComponentProps<typeof motion.section> & {
   delay?: number;
 };
 

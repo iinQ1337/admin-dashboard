@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Save, X } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -15,6 +16,7 @@ type ConfigEditorDialogProps = {
 type StatusMessage = { type: "success" | "error"; text: string } | null;
 
 export function ConfigEditorDialog({ open, onClose }: ConfigEditorDialogProps) {
+  const t = useTranslations();
   const [mounted, setMounted] = useState(false);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ export function ConfigEditorDialog({ open, onClose }: ConfigEditorDialogProps) {
       const response = await fetch("/api/config/raw", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Не удалось загрузить config.yaml");
+        throw new Error(payload.error ?? t("Не удалось загрузить config.yaml", "Failed to load config.yaml"));
       }
       setContent(payload.content ?? "");
     } catch (error) {
@@ -68,9 +70,9 @@ export function ConfigEditorDialog({ open, onClose }: ConfigEditorDialogProps) {
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Не удалось сохранить config.yaml");
+        throw new Error(payload.error ?? t("Не удалось сохранить config.yaml", "Failed to save config.yaml"));
       }
-      setStatus({ type: "success", text: "Файл сохранён" });
+      setStatus({ type: "success", text: t("Файл сохранён", "File saved") });
     } catch (error) {
       setStatus({ type: "error", text: (error as Error).message });
     } finally {
@@ -91,9 +93,9 @@ export function ConfigEditorDialog({ open, onClose }: ConfigEditorDialogProps) {
         <header className="flex items-center justify-between border-b border-border/70 px-5 py-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">config.yaml</p>
-            <h3 className="text-xl font-semibold">Редактирование конфигурации</h3>
+            <h3 className="text-xl font-semibold">{t("Редактирование конфигурации", "Edit configuration")}</h3>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleClose} aria-label="Закрыть" disabled={saving}>
+          <Button variant="ghost" size="icon" onClick={handleClose} aria-label={t("Закрыть", "Close")} disabled={saving}>
             <X className="h-4 w-4" />
           </Button>
         </header>
@@ -122,21 +124,21 @@ export function ConfigEditorDialog({ open, onClose }: ConfigEditorDialogProps) {
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Загрузка файла…
+              {t("Загрузка файла…", "Loading file…")}
             </div>
           ) : null}
           <div className="flex flex-1 justify-end gap-2">
             <Button variant="ghost" onClick={handleClose} disabled={saving}>
-              Отмена
+              {t("Отмена", "Cancel")}
             </Button>
             <Button onClick={handleSave} disabled={disabled}>
               {saving ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Сохранение…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("Сохранение…", "Saving…")}
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" /> Сохранить
+                  <Save className="mr-2 h-4 w-4" /> {t("Сохранить", "Save")}
                 </>
               )}
             </Button>

@@ -1,39 +1,43 @@
+"use client";
+
 import { Calendar, Clock, Gauge, ShieldCheck } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardSummary } from "@/lib/report";
 import { cn, formatNumber } from "@/lib/utils";
+import { useTranslations } from "@/components/language-provider";
 
 const ICONS = [Gauge, ShieldCheck, Clock, Calendar];
 
 export function OverviewCards({ summary }: { summary: DashboardSummary }) {
+  const t = useTranslations();
   const data = [
     {
-      label: "Всего проверок",
+      label: t("Всего проверок", "Total checks"),
       value: formatNumber(summary.totalChecks, 0),
-      sub: "API + страницы",
+      sub: "API + pages",
       accent: "from-sky-500/20 to-sky-500/5",
       href: "#dashboard-checks"
     },
     {
-      label: "Процент успеха",
+      label: t("Процент успеха", "Success rate"),
       value: `${summary.successRate.toFixed(1)}%`,
-      sub: "Выполнено без ошибок",
+      sub: t("Выполнено без ошибок", "Completed without errors"),
       accent: "from-emerald-500/20 to-emerald-500/5",
       href: "#dashboard-performance"
     },
     {
-      label: "Средняя задержка",
-      value: `${summary.avgLatency.toFixed(1)} мс`,
-      sub: "По всем категориям",
+      label: t("Средняя задержка", "Average latency"),
+      value: `${summary.avgLatency.toFixed(1)} ${t("мс", "ms")}`,
+      sub: t("По всем категориям", "Across all categories"),
       accent: "from-amber-500/20 to-amber-500/5",
       href: "#dashboard-performance"
     },
     {
-      label: "Ошибки",
+      label: t("Ошибки", "Incidents"),
       value: summary.incidents.toString(),
-      sub: "Нужно внимание",
+      sub: t("Нужно внимание", "Needs attention"),
       accent: "from-rose-500/20 to-rose-500/5",
       href: "#dashboard-logs"
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Activity, Cpu, HardDrive, Network, ThermometerIcon } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { ServerCheck } from "@/lib/report";
@@ -17,21 +18,34 @@ const STATUS_TONES: Record<string, StatusTone> = {
   critical: "danger"
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  ok: "В норме",
-  warning: "Предупреждение",
-  critical: "Авария"
+const STATUS_LABELS: Record<string, { ru: string; en: string }> = {
+  ok: { ru: "В норме", en: "Healthy" },
+  warning: { ru: "Предупреждение", en: "Warning" },
+  critical: { ru: "Авария", en: "Critical" }
 };
 
 export function ServerHealth({ server }: { server: ServerCheck }) {
+  const t = useTranslations();
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [taskFocus, setTaskFocus] = useState<"cpu" | "memory">("cpu");
 
   const disks = Object.entries(server.disk);
   const health = [
-    { label: "CPU", value: server.cpu.percent, icon: Cpu, type: "cpu" as const },
-    { label: "Память", value: server.memory.percent, icon: ThermometerIcon, type: "memory" as const }
+    {
+      label: { ru: "CPU", en: "CPU" },
+      value: server.cpu.percent,
+      icon: Cpu,
+      type: "cpu" as const
+    },
+    {
+      label: { ru: "Память", en: "Memory" },
+      value: server.memory.percent,
+      icon: ThermometerIcon,
+      type: "memory" as const
+    }
   ];
+  const statusLabel = STATUS_LABELS[server.overall_status];
+  const statusText = statusLabel ? t(statusLabel.ru, statusLabel.en) : server.overall_status;
 
   const openTaskManager = (type: "cpu" | "memory") => {
     setTaskFocus(type);
@@ -43,40 +57,43 @@ export function ServerHealth({ server }: { server: ServerCheck }) {
       <Card className="h-full">
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Сервер</CardTitle>
+            <CardTitle>{t("Сервер", "Server")}</CardTitle>
             <CardDescription>{server.hostname}</CardDescription>
           </div>
           <StatusBadge
             tone={STATUS_TONES[server.overall_status] ?? "info"}
             className="text-xs font-medium uppercase tracking-wide"
           >
-            {STATUS_LABELS[server.overall_status] ?? server.overall_status}
+            {statusText}
           </StatusBadge>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            {health.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => openTaskManager(item.type)}
-                aria-label={`Открыть диспетчер для ${item.label}`}
-                className="rounded-xl border border-border/70 bg-card/40 p-4 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <div className="mb-3 flex items-center justify-between text-sm font-medium text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4" /> {item.label}
-                  </span>
-                  <span>{item.value}%</span>
-                </div>
-                <Progress value={item.value} />
-                <p className="mt-2 text-xs text-primary">Открыть диспетчер</p>
-              </button>
-            ))}
+            {health.map((item) => {
+              const label = t(item.label.ru, item.label.en);
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => openTaskManager(item.type)}
+                  aria-label={t(`Открыть диспетчер для ${label}`, `Open task manager for ${label}`)}
+                  className="rounded-xl border border-border/70 bg-card/40 p-4 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="mb-3 flex items-center justify-between text-sm font-medium text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <item.icon className="h-4 w-4" /> {label}
+                    </span>
+                    <span>{item.value}%</span>
+                  </div>
+                  <Progress value={item.value} />
+                  <p className="mt-2 text-xs text-primary">{t("Открыть диспетчер", "Open task manager")}</p>
+                </button>
+              );
+            })}
           </div>
 
           <div className="rounded-xl border bg-card/50 p-4">
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Диски</p>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">{t("Диски", "Disks")}</p>
             <div className="space-y-3">
               {disks.map(([mount, disk]) => (
                 <div key={mount} className="space-y-2">
@@ -99,13 +116,13 @@ export function ServerHealth({ server }: { server: ServerCheck }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border bg-card/40 p-4 text-sm">
               <p className="mb-1 flex items-center gap-2 text-muted-foreground">
-                <Activity className="h-4 w-4" /> Аптайм
+                <Activity className="h-4 w-4" /> {t("Аптайм", "Uptime")}
               </p>
               <p className="text-lg font-semibold">{server.uptime.human}</p>
             </div>
             <div className="rounded-xl border bg-card/40 p-4 text-sm">
               <p className="mb-1 flex items-center gap-2 text-muted-foreground">
-                <Network className="h-4 w-4" /> Трафик
+                <Network className="h-4 w-4" /> {t("Трафик", "Traffic")}
               </p>
               <p className="text-lg font-semibold">
                 ↑ {formatBytes(server.network.bytes_sent)} <br />↓ {formatBytes(server.network.bytes_recv)}

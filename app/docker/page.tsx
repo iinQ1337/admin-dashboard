@@ -12,6 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ContainerTable } from "@/components/docker/container-table";
 import { type DockerEvent, type DockerNode, loadDockerMonitoringData } from "@/lib/docker";
+import { createTranslator, formatDateTime } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n-server";
 
 const NODE_STATUS_TONE: Record<DockerNode["status"], StatusTone> = {
   online: "success",
@@ -26,8 +28,10 @@ const EVENT_TONE: Record<DockerEvent["type"], StatusTone> = {
 };
 
 export default async function DockerPage() {
+  const locale = resolveLocale();
+  const t = createTranslator(locale);
   const data = await loadDockerMonitoringData();
-  const updatedAt = new Date(data.generatedAt).toLocaleString("ru-RU", {
+  const updatedAt = formatDateTime(data.generatedAt, locale, {
     dateStyle: "medium",
     timeStyle: "short"
   });
@@ -37,20 +41,21 @@ export default async function DockerPage() {
       <main className="flex-1 overflow-y-auto bg-gradient-to-b from-background via-background to-background">
         <AnimatedSection className="container space-y-8 py-10">
           <header className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">Инфраструктура</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-primary">{t("Инфраструктура", "Infrastructure")}</p>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Docker / Orchestration</h1>
                 <p className="text-muted-foreground">
-                  Контейнеры, Swarm-узлы и события кластера. Обновлено {updatedAt}
+                  {t("Контейнеры, Swarm-узлы и события кластера. Обновлено", "Containers, Swarm nodes, and cluster events. Updated")}{" "}
+                  {updatedAt}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge tone="info" className="w-fit">
-                  {data.summary.runningContainers} активных контейнеров
+                  {data.summary.runningContainers} {t("активных контейнеров", "running containers")}
                 </StatusBadge>
                 <Button asChild variant="outline" size="sm">
-                    <Link href="/settings?tab=supervisor">Настройки докера</Link>
+                  <Link href="/settings?tab=supervisor">{t("Настройки докера", "Docker settings")}</Link>
                 </Button>
               </div>
             </div>
@@ -59,30 +64,30 @@ export default async function DockerPage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               icon={<Boxes className="h-4 w-4 text-primary" />}
-              label="Работает контейнеров"
+              label={t("Работает контейнеров", "Running containers")}
               value={data.summary.runningContainers}
-              helper={`${data.summary.unhealthyContainers} требуют внимания`}
+              helper={`${data.summary.unhealthyContainers} ${t("требуют внимания", "need attention")}`}
               href="#docker-containers"
             />
             <SummaryCard
               icon={<Cpu className="h-4 w-4 text-primary" />}
-              label="Средняя загрузка CPU"
+              label={t("Средняя загрузка CPU", "Average CPU usage")}
               value={`${data.summary.avgCpuUsage}%`}
-              helper="За последние 10 мин"
+              helper={t("За последние 10 мин", "Last 10 minutes")}
               href="#docker-containers"
             />
             <SummaryCard
               icon={<Server className="h-4 w-4 text-primary" />}
-              label="Узлов онлайн"
+              label={t("Узлов онлайн", "Nodes online")}
               value={data.nodes.filter((node) => node.status === "online").length}
-              helper={`${data.nodes.length} в кластере`}
+              helper={`${data.nodes.length} ${t("в кластере", "in cluster")}`}
               href="#docker-nodes"
             />
             <SummaryCard
               icon={<AlertCircle className="h-4 w-4 text-primary" />}
-              label="Событий"
+              label={t("Событий", "Events")}
               value={data.summary.warningCount}
-              helper="Только предупреждения и ошибки"
+              helper={t("Только предупреждения и ошибки", "Warnings and errors only")}
               href="#docker-events"
             />
           </section>
@@ -91,8 +96,8 @@ export default async function DockerPage() {
             <div id="docker-containers">
               <Card>
                 <CardHeader>
-                  <CardTitle>Контейнеры</CardTitle>
-                  <CardDescription>Здоровье сервисов и использование ресурсов</CardDescription>
+                  <CardTitle>{t("Контейнеры", "Containers")}</CardTitle>
+                  <CardDescription>{t("Здоровье сервисов и использование ресурсов", "Service health and resource usage")}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                   <ContainerTable containers={data.containers} events={data.events} />
@@ -103,8 +108,8 @@ export default async function DockerPage() {
             <div id="docker-nodes">
               <Card>
                 <CardHeader>
-                  <CardTitle>Узлы</CardTitle>
-                  <CardDescription>Статус Swarm / Kubernetes-воркеров</CardDescription>
+                  <CardTitle>{t("Узлы", "Nodes")}</CardTitle>
+                  <CardDescription>{t(" Swarm / Kubernetes-воркеров", "Swarm / Kubernetes workers status")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {data.nodes.map((node) => (
@@ -121,11 +126,13 @@ export default async function DockerPage() {
                       <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                         <Metric label="CPU" value={`${node.cpuUsage}%`} percent={node.cpuUsage} />
                         <Metric
-                          label="Память"
-                          value={`${node.memoryUsageGb} / ${node.memoryCapacityGb} ГБ`}
+                          label={t("Память", "Memory")}
+                          value={`${node.memoryUsageGb} / ${node.memoryCapacityGb} ${t("ГБ", "GB")}`}
                           percent={Math.round((node.memoryUsageGb / node.memoryCapacityGb) * 100)}
                         />
-                        <p>Контейнеров: {node.runningContainers}</p>
+                        <p>
+                          {t("Контейнеров", "Containers")}: {node.runningContainers}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -136,8 +143,8 @@ export default async function DockerPage() {
             <div id="docker-events">
               <Card>
                 <CardHeader>
-                  <CardTitle>События</CardTitle>
-                  <CardDescription>Последние операции и алерты</CardDescription>
+                  <CardTitle>{t("События", "Events")}</CardTitle>
+                  <CardDescription>{t("Последние операции и алерты", "Recent operations and alerts")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 max-h-96 overflow-y-auto pr-1">
                   {data.events.map((event) => (
@@ -149,13 +156,13 @@ export default async function DockerPage() {
                         <p className="text-sm font-medium">{event.scope}</p>
                         <p className="text-sm text-muted-foreground">{event.message}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatTimestamp(event.timestamp)}
+                          {formatTimestamp(event.timestamp, locale)}
                         </p>
                       </div>
                     </div>
                   ))}
                   {!data.events.length ? (
-                    <p className="text-sm text-muted-foreground">Активных событий нет</p>
+                    <p className="text-sm text-muted-foreground">{t("Активных событий нет", "No active events")}</p>
                   ) : null}
                 </CardContent>
               </Card>
@@ -221,8 +228,8 @@ function Metric({ label, value, percent }: { label: string; value: string; perce
   );
 }
 
-function formatTimestamp(value: string) {
-  return new Date(value).toLocaleString("ru-RU", {
+function formatTimestamp(value: string, locale: ReturnType<typeof resolveLocale>) {
+  return formatDateTime(value, locale, {
     hour: "2-digit",
     minute: "2-digit",
     day: "2-digit",

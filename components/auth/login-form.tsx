@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Lock } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function LoginForm() {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +32,7 @@ export function LoginForm() {
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Не удалось войти");
+        throw new Error(payload?.error ?? t("Не удалось войти", "Unable to sign in"));
       }
       const redirectParam = searchParams.get("redirect");
       const safeRedirect = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/";
@@ -45,11 +47,11 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="password">Пароль</Label>
+        <Label htmlFor="password">{t("Пароль", "Password")}</Label>
         <Input
           id="password"
           type="password"
-          placeholder="Введите пароль"
+          placeholder={t("Введите пароль", "Enter password")}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
@@ -58,7 +60,7 @@ export function LoginForm() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
-        Войти
+        {t("Войти", "Sign in")}
       </Button>
     </form>
   );

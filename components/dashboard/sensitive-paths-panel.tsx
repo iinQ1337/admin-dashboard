@@ -1,5 +1,8 @@
+"use client";
+
 import { AlertTriangle, FolderDot, ShieldCheck, ShieldX } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SensitivePathsCheck } from "@/lib/report";
@@ -7,30 +10,31 @@ import { formatNumber } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
 export function SensitivePathsPanel({ data }: { data: SensitivePathsCheck }) {
+  const t = useTranslations();
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Чувствительные директории</CardTitle>
-          <CardDescription>Проверки на доступ к .env, конфигам и служебным файлам</CardDescription>
+          <CardTitle>{t("Чувствительные директории", "Sensitive directories")}</CardTitle>
+          <CardDescription>{t("Проверки на доступ к .env, конфигам и служебным файлам", "Access checks to .env, configs, and system files")}</CardDescription>
         </div>
         <StatusBadge tone={data.exposed ? "danger" : "success"} className="gap-1 text-xs uppercase">
           {data.exposed ? (
             <>
-              <AlertTriangle className="h-3.5 w-3.5" /> Обнаружено: {data.exposed}
+              <AlertTriangle className="h-3.5 w-3.5" /> {t("Обнаружено", "Found")}: {data.exposed}
             </>
           ) : (
             <>
-              <ShieldCheck className="h-3.5 w-3.5" /> Всё закрыто
+              <ShieldCheck className="h-3.5 w-3.5" /> {t("Всё закрыто", "All closed")}
             </>
           )}
         </StatusBadge>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Stat label="Всего" value={data.total_checked} />
-          <Stat label="Обнаружено" value={data.exposed} />
-          <Stat label="Ошибок" value={data.errors} />
+          <Stat label={t("Всего", "Total")} value={data.total_checked} />
+          <Stat label={t("Обнаружено", "Found")} value={data.exposed} />
+          <Stat label={t("Ошибок", "Errors")} value={data.errors} />
         </div>
         <ScrollArea className="h-[260px] pr-4">
           <div className="space-y-3">
@@ -44,19 +48,19 @@ export function SensitivePathsPanel({ data }: { data: SensitivePathsCheck }) {
                   <StatusBadge tone={item.exposed ? "danger" : "info"} className="gap-1 text-xs uppercase">
                     {item.exposed ? (
                       <>
-                        <ShieldX className="h-3.5 w-3.5" /> Доступен
+                        <ShieldX className="h-3.5 w-3.5" /> {t("Доступен", "Exposed")}
                       </>
                     ) : (
                       <>
-                        <FolderDot className="h-3.5 w-3.5" /> Скрыт
+                        <FolderDot className="h-3.5 w-3.5" /> {t("Скрыт", "Hidden")}
                       </>
                     )}
                   </StatusBadge>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Статус: {item.status ?? "—"} · {item.url}
+                  {t("Статус", "Status")}: {item.status ?? "—"} · {item.url}
                 </p>
-                {item.error ? <p className="mt-1 text-xs text-destructive">Ошибка: {item.error}</p> : null}
+                {item.error ? <p className="mt-1 text-xs text-destructive">{t("Ошибка", "Error")}: {item.error}</p> : null}
               </div>
             ))}
           </div>

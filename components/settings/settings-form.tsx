@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BellRing, Bot, Clock, Hash, MessageSquareWarning, Palette, Plus, Settings2, Trash2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslations } from "@/components/language-provider";
 
 type NotifyEvent = "tls_expiry" | "sensitive_exposed" | "api_failures" | "server_alerts";
 
@@ -26,6 +27,85 @@ const DISCORD_EVENTS: { value: NotifyEvent; label: string }[] = [
   { value: "tls_expiry", label: "Срок TLS" },
   { value: "sensitive_exposed", label: "Чувствительные директории" }
 ];
+
+const SETTINGS_DICTIONARY: Record<string, string> = {
+  "Срок TLS": "TLS expiry",
+  "Чувствительные директории": "Sensitive directories",
+  "Сбои API": "API failures",
+  "Нагрузочные алерты": "Load alerts",
+  "Автосохранение бэкапов": "Auto-save backups",
+  "Алармы (RDS/ClickHouse)": "Alarms (RDS/ClickHouse)",
+  "Бэкапы": "Backups",
+  "Включить супервизор": "Enable supervisor",
+  "Группа": "Group",
+  "Дней до истечения TLS": "Days until TLS expiry",
+  "Добавлять теги в сообщение": "Include tags in message",
+  "Доп. инструкции": "Extra instructions",
+  "Задержка (сек)": "Delay (sec)",
+  "Имя бота": "Bot name",
+  "Имя узла по умолчанию": "Default node name",
+  "Интервал (сек)": "Interval (sec)",
+  "Количество последних файлов на сайт": "Files per site",
+  "Не оповещать о восстановлении": "Mute recovery notifications",
+  "Оповещать о сбоях API": "Notify about API failures",
+  "Папка для бэкапов": "Backup directory",
+  "Папка логов": "Logs directory",
+  "Повторных попыток": "Retry attempts",
+  "Пользователь": "User",
+  "Попыток до offline": "Attempts before offline",
+  "Рабочая директория": "Working directory",
+  "Следить за чувствительными директориями": "Monitor sensitive directories",
+  "Собирать через docker CLI": "Collect via docker CLI",
+  "Сообщать о нагрузке сервера": "Report server load",
+  "Таймаут (сек)": "Timeout (sec)",
+  "Таймаут запроса (сек)": "Request timeout (sec)",
+  "Таймаут уведомления (сек)": "Notification timeout (sec)",
+  "Уведомления включены": "Notifications enabled",
+  "Хранить записей": "Retention count",
+  "Lag порог (мс)": "Lag threshold (ms)",
+  "Storage порог (%)": "Storage threshold (%)",
+  "Загружаем config.yaml…": "Loading config.yaml…",
+  "Не удалось загрузить config.yaml": "Failed to load config.yaml",
+  "Сохраняем настройки…": "Saving settings…",
+  "Настройки сохранены в config.yaml": "Settings saved to config.yaml",
+  "Ошибка при сохранении config.yaml": "Error while saving config.yaml",
+  "Интеграции": "Integrations",
+  "Telegram / Discord без прямого редактирования config.yaml": "Telegram / Discord without editing config.yaml directly",
+  "Потоки данных": "Data streams",
+  "Интервалы и параметры для /docker и /databases": "Intervals and params for /docker and /databases",
+  "Опрос и тайминги": "Polling and timing",
+  "Соответствует секции `polling` из config.yaml": "Matches `polling` section from config.yaml",
+  "Интеграции и настройки оповещений": "Integrations and notifications",
+  "Мониторинг": "Monitoring",
+  "Уведомления": "Notifications",
+  "UI · только сайт": "UI · site only",
+  "Триггеры уведомлений": "Notification triggers",
+  "Сохранить параметры": "Save settings",
+  "Сохраняем…": "Saving…",
+  "Добавить": "Add",
+  "Снимки контейнеров, узлов и событий": "Snapshots of containers, nodes, and events",
+  "Использовать docker ps/stats/events вместо статического списка": "Use docker ps/stats/events instead of a static list",
+  "Периодические проверки подключений": "Periodic connection checks",
+  "Загружать и отображать сообщения": "Load and display messages",
+  "Показывать расписание и статусы": "Show schedule and statuses",
+  "Создавать запись бэкапа по каждому циклу": "Create a backup record each cycle",
+  "Общие уведомления": "General notifications",
+  "События": "Events",
+  "Шаблон сообщения": "Message template",
+  "Теги": "Tags",
+  "Теги пока не добавлены.": "No tags added yet.",
+  "Политика рестартов": "Restart policy",
+  "Мониторинг ресурсов": "Resource monitoring",
+  "Лимиты ресурсов (rlimit)": "Resource limits (rlimit)",
+  "Нажмите, чтобы выбрать цвет": "Click to select a color",
+  "Тема": "Theme",
+  "Включить сбор CPU/RAM/сеть": "Enable CPU/RAM/network sampling",
+  "Self-heal супервизоров": "Supervisor self-heal"
+};
+
+function translateWithSettings(t: ReturnType<typeof useTranslations>, value: string, english?: string) {
+  return t(value, english ?? SETTINGS_DICTIONARY[value] ?? value);
+}
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -294,6 +374,8 @@ function createThemeSeed(index: number): ThemePreset {
 }
 
 export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: string }) {
+  const t = useTranslations();
+  const tr = useCallback((value: string, english?: string) => translateWithSettings(t, value, english), [t]);
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [tagInput, setTagInput] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "success" | "error">("loading");
@@ -304,7 +386,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
   useEffect(() => {
     async function loadSettings() {
       setStatus("loading");
-      setStatusMessage("Загружаем config.yaml…");
+      setStatusMessage(tr("Загружаем config.yaml…"));
       try {
         const response = await fetch("/api/settings");
         if (!response.ok) throw new Error(await response.text());
@@ -315,7 +397,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
       } catch (error) {
         console.error(error);
         setStatus("error");
-        setStatusMessage("Не удалось загрузить config.yaml");
+        setStatusMessage(tr("Не удалось загрузить config.yaml"));
       }
     }
     loadSettings();
@@ -410,7 +492,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setStatus("saving");
-    setStatusMessage("Сохраняем настройки…");
+    setStatusMessage(tr("Сохраняем настройки…"));
     try {
       const payload = buildPayload(form);
       const response = await fetch("/api/settings", {
@@ -420,11 +502,11 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
       });
       if (!response.ok) throw new Error(await response.text());
       setStatus("success");
-      setStatusMessage("Настройки сохранены в config.yaml");
+      setStatusMessage(tr("Настройки сохранены в config.yaml"));
     } catch (error) {
       console.error(error);
       setStatus("error");
-      setStatusMessage("Ошибка при сохранении config.yaml");
+      setStatusMessage(tr("Ошибка при сохранении config.yaml"));
     }
   }
 
@@ -435,16 +517,16 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
       <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="grid w-full gap-2 rounded-xl bg-muted/40 p-1 sm:grid-cols-4">
           <TabsTrigger value="monitoring" className="rounded-lg">
-            Мониторинг
+            {tr("Мониторинг", "Monitoring")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="rounded-lg">
-            Уведомления
+            {tr("Уведомления", "Notifications")}
           </TabsTrigger>
           <TabsTrigger value="supervisor" className="rounded-lg">
             Supervisor
           </TabsTrigger>
           <TabsTrigger value="ui" className="rounded-lg">
-            UI · только сайт
+            {tr("UI · только сайт")}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="monitoring" className="settings-tab-content">
@@ -453,9 +535,11 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Settings2 className="h-5 w-5 text-primary" /> Потоки данных
+                    <Settings2 className="h-5 w-5 text-primary" /> {tr("Потоки данных", "Data streams")}
                   </CardTitle>
-                  <CardDescription>Интервалы и параметры для /docker и /databases</CardDescription>
+                  <CardDescription>
+                    {tr("Интервалы и параметры для /docker и /databases", "Intervals and parameters for /docker and /databases")}
+                  </CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
@@ -679,9 +763,9 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" /> Опрос и тайминги
+              <Clock className="h-5 w-5 text-primary" /> {tr("Опрос и тайминги", "Polling and timings")}
             </CardTitle>
-            <CardDescription>Соответствует секции `polling` из config.yaml</CardDescription>
+            <CardDescription>{tr("Соответствует секции `polling` из config.yaml")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
             <Field
@@ -733,9 +817,9 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" /> Интеграции
+                    <Bot className="h-5 w-5 text-primary" /> {tr("Интеграции")}
                   </CardTitle>
-                  <CardDescription>Telegram / Discord без прямого редактирования config.yaml</CardDescription>
+                  <CardDescription>{tr("Telegram / Discord без прямого редактирования config.yaml")}</CardDescription>
                 </div>
                 <ToggleCard
                   label="Уведомления включены"
@@ -782,7 +866,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                       }
                     />
                     <div>
-                      <Label>События</Label>
+                      <Label>{tr("События")}</Label>
                       <div className="mt-2 grid gap-2">
                         {TELEGRAM_EVENTS.map((option) => (
                           <CheckboxRow
@@ -797,7 +881,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                   </div>
                   <div className="grid gap-4">
                     <div>
-                      <Label htmlFor="tgTemplate">Шаблон сообщения</Label>
+                      <Label htmlFor="tgTemplate">{tr("Шаблон сообщения")}</Label>
                       <Textarea
                         id="tgTemplate"
                         value={form.telegram.messageTemplate}
@@ -858,7 +942,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                       }
                     />
                     <div>
-                      <Label>События</Label>
+                      <Label>{tr("События")}</Label>
                       <div className="mt-2 grid gap-2">
                         {DISCORD_EVENTS.map((option) => (
                           <CheckboxRow
@@ -872,7 +956,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="discordTemplate">Шаблон сообщения</Label>
+                    <Label htmlFor="discordTemplate">{tr("Шаблон сообщения")}</Label>
                     <Textarea
                       id="discordTemplate"
                       value={form.discord.messageTemplate}
@@ -891,7 +975,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BellRing className="h-5 w-5 text-primary" /> Общие уведомления
+                  <BellRing className="h-5 w-5 text-primary" /> {tr("Общие уведомления")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -938,7 +1022,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                   }
                 />
                 <div className="space-y-2">
-                  <Label>Теги</Label>
+                  <Label>{tr("Теги")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {form.common.tags.map((tag) => (
                       <Badge key={tag} variant="secondary" className="gap-1">
@@ -952,7 +1036,9 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                         </button>
                       </Badge>
                     ))}
-                    {!form.common.tags.length && <p className="text-xs text-muted-foreground">Теги пока не добавлены.</p>}
+                    {!form.common.tags.length && (
+                      <p className="text-xs text-muted-foreground">{tr("Теги пока не добавлены.")}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Input
@@ -961,7 +1047,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                       onChange={(event) => setTagInput(event.target.value)}
                     />
                     <Button type="button" variant="secondary" onClick={handleAddTag}>
-                      Добавить
+                      {tr("Добавить")}
                     </Button>
                   </div>
                 </div>
@@ -971,9 +1057,9 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquareWarning className="h-5 w-5 text-primary" /> Триггеры уведомлений
+                  <MessageSquareWarning className="h-5 w-5 text-primary" /> {tr("Триггеры уведомлений")}
                 </CardTitle>
-                <CardDescription>Секция `alerts` в config.yaml</CardDescription>
+                <CardDescription>{tr("Секция `alerts` в config.yaml", "Section `alerts` in config.yaml")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Field
@@ -1033,9 +1119,11 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" /> Мини-супервизор
+                    <Bot className="h-5 w-5 text-primary" /> {tr("Мини-супервизор", "Mini supervisor")}
                   </CardTitle>
-                  <CardDescription>Настройки запуска процессов, watchdog и health-check API</CardDescription>
+                  <CardDescription>
+                    {tr("Настройки запуска процессов, watchdog и health-check API", "Process start settings, watchdog, and health-check API")}
+                  </CardDescription>
                 </div>
                 <ToggleCard
                   label="Включить супервизор"
@@ -1132,7 +1220,9 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                 </div>
 
                 <div>
-                  <Label htmlFor="supEnv">Переменные окружения (KEY=VALUE, по строкам)</Label>
+                  <Label htmlFor="supEnv">
+                    {tr("Переменные окружения (KEY=VALUE, по строкам)", "Environment variables (KEY=VALUE, per line)")}
+                  </Label>
                   <Textarea
                     id="supEnv"
                     value={form.supervisor.command.envText}
@@ -1152,7 +1242,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-3 rounded-xl border bg-card/40 p-4">
-                    <p className="text-sm font-medium">Политика рестартов</p>
+                    <p className="text-sm font-medium">{tr("Политика рестартов")}</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field
                         id="supRestartMode"
@@ -1279,7 +1369,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                   </div>
 
                   <div className="space-y-3 rounded-xl border bg-card/40 p-4">
-                    <p className="text-sm font-medium">Мониторинг ресурсов</p>
+                    <p className="text-sm font-medium">{tr("Мониторинг ресурсов")}</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <ToggleRow
                         label="sample_enabled"
@@ -1540,7 +1630,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
                   </div>
 
                   <div className="rounded-xl border bg-card/40 p-4">
-                    <p className="text-sm font-medium">Лимиты ресурсов (rlimit)</p>
+                    <p className="text-sm font-medium">{tr("Лимиты ресурсов (rlimit)")}</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field
                         id="supLimitMem"
@@ -1601,16 +1691,21 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Hash className="h-5 w-5 text-primary" /> Настройки графиков
+                  <Hash className="h-5 w-5 text-primary" /> {tr("Настройки графиков", "Chart settings")}
                 </CardTitle>
                 <CardDescription>
-                  Эти параметры влияют только на витрину /admin-dashboard и не задействуются самим мониторингом.
+                  {tr(
+                    "Эти параметры влияют только на витрину /admin-dashboard и не задействуются самим мониторингом.",
+                    "These options affect only the /admin-dashboard view and are not used by the monitoring service."
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Используется для подбора последних JSON файлов для каждого сайта при построении диаграмм. Можно смело
-                  экспериментировать — Python сервис продолжит работать по прежнему.
+                  {tr(
+                    "Используется для подбора последних JSON файлов для каждого сайта при построении диаграмм. Можно смело экспериментировать — Python сервис продолжит работать по прежнему.",
+                    "Used to pick the latest JSON files per site when building charts. Feel free to experiment — the Python service keeps working as before."
+                  )}
                 </p>
                 <Field
                   id="historyFiles"
@@ -1637,7 +1732,10 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
           <Settings2 className="h-4 w-4" />
-            Значения синхронизируются с секциями `notifications`, `polling`, `alerts`, `dashboard`, `supervisor` в config.yaml.
+            {tr(
+              "Значения синхронизируются с секциями `notifications`, `polling`, `alerts`, `dashboard`, `supervisor` в config.yaml.",
+              "Values sync with `notifications`, `polling`, `alerts`, `dashboard`, `supervisor` sections in config.yaml."
+            )}
           </div>
           {statusMessage && (
             <span
@@ -1654,7 +1752,7 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
           )}
         </div>
         <Button type="submit" disabled={disabled}>
-          {status === "saving" ? "Сохраняем…" : "Сохранить параметры"}
+          {status === "saving" ? tr("Сохраняем…") : tr("Сохранить параметры")}
         </Button>
       </div>
     </form>
@@ -1662,11 +1760,13 @@ export function SettingsForm({ initialTab = "monitoring" }: { initialTab?: strin
 }
 
 function Field(props: React.ComponentProps<typeof Input> & { label: string }) {
+  const t = useTranslations();
   const { id, label, className, ...rest } = props;
+  const translatedLabel = translateWithSettings(t, label);
   return (
     <div>
       <Label htmlFor={id} className="break-words">
-        {label}
+        {translatedLabel}
       </Label>
       <Input id={id} className={className} {...rest} />
     </div>
@@ -1682,9 +1782,11 @@ function ToggleCard({
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
 }) {
+  const t = useTranslations();
+  const translatedLabel = translateWithSettings(t, label);
   return (
     <div className="flex items-center gap-3 rounded-full border bg-card/50 px-4 py-1.5 text-sm">
-      {label}
+      {translatedLabel}
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
   );
@@ -1701,11 +1803,12 @@ function ToggleRow({
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
 }) {
+  const t = useTranslations();
   return (
     <div className="flex items-start justify-between gap-4 rounded-xl border bg-card/50 p-4">
       <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-sm font-medium">{translateWithSettings(t, label)}</p>
+        <p className="text-xs text-muted-foreground">{translateWithSettings(t, description)}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
@@ -1721,10 +1824,11 @@ function CheckboxRow({
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
 }) {
+  const t = useTranslations();
   return (
     <label className="flex items-center gap-2 text-sm">
       <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(Boolean(value))} />
-      <span>{label}</span>
+      <span>{translateWithSettings(t, label)}</span>
     </label>
   );
 }
@@ -1762,6 +1866,7 @@ function ThemeColorField({
   onChange: (value: string) => void;
   fallback?: string;
 }) {
+  const t = useTranslations();
   const inputRef = useRef<HTMLInputElement>(null);
   const normalized = normalizeHex(value, fallback);
   const textColor = getReadableTextColor(normalized);
@@ -1790,7 +1895,7 @@ function ThemeColorField({
           <span>{label}</span>
           <span className="text-xs uppercase opacity-80">{normalized.toUpperCase()}</span>
         </div>
-        <p className="text-xs font-normal opacity-80">Нажмите, чтобы выбрать цвет</p>
+        <p className="text-xs font-normal opacity-80">{translateWithSettings(t, "Нажмите, чтобы выбрать цвет")}</p>
       </div>
       <input
         type="color"
@@ -1798,7 +1903,7 @@ function ThemeColorField({
         value={normalized}
         onChange={(event) => onChange(event.target.value)}
         className="sr-only"
-        aria-label={`Выбрать цвет ${label}`}
+        aria-label={`${t("Выбрать цвет", "Choose color")} ${label}`}
       />
       <Input
         value={value ?? ""}

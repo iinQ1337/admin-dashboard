@@ -11,7 +11,9 @@ import {
   CartesianGrid
 } from "recharts";
 
+import { useLanguage, useTranslations } from "@/components/language-provider";
 import type { ChartPoint } from "@/lib/report";
+import { localeToIntl } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const COLORS = {
@@ -20,6 +22,9 @@ const COLORS = {
 };
 
 export function LatencyChart({ data, showAxisLabels = true }: { data: ChartPoint[]; showAxisLabels?: boolean }) {
+  const { locale } = useLanguage();
+  const t = useTranslations();
+  const intlLocale = localeToIntl(locale);
   const sorted = useMemo(() => {
     const items = [...data];
     const timestamps = items.map((item) => item.timestamp).filter((value): value is string => Boolean(value));
@@ -68,11 +73,14 @@ export function LatencyChart({ data, showAxisLabels = true }: { data: ChartPoint
 }
 
 function LatencyTooltip({ active, payload }: any) {
+  const { locale } = useLanguage();
+  const t = useTranslations();
+  const intlLocale = localeToIntl(locale);
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as ChartPoint;
   const timestampLabel =
     item.timestamp && !Number.isNaN(new Date(item.timestamp).getTime())
-      ? new Date(item.timestamp).toLocaleString("ru-RU", {
+      ? new Date(item.timestamp).toLocaleString(intlLocale, {
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
@@ -84,7 +92,9 @@ function LatencyTooltip({ active, payload }: any) {
       <div className="font-medium">{item.label}</div>
       <div className="text-muted-foreground">{item.category}</div>
       {timestampLabel ? <div className="text-muted-foreground/80">{timestampLabel}</div> : null}
-      <div className={cn("font-semibold", item.status === "ok" ? "text-emerald-500" : "text-amber-500")}>{item.latency.toFixed(1)} мс</div>
+      <div className={cn("font-semibold", item.status === "ok" ? "text-emerald-500" : "text-amber-500")}>
+        {item.latency.toFixed(1)} {t("мс", "ms")}
+      </div>
     </div>
   );
 }

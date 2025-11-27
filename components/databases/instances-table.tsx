@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { CheckCircle2, Info, X } from "lucide-react";
 
+import { useLanguage, useTranslations } from "@/components/language-provider";
 import { StatusBadge, type StatusTone } from "@/components/dashboard/status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { DatabaseInstance } from "@/lib/databases";
+import { localeToIntl, type Locale } from "@/lib/i18n";
 
 const STATUS_TONES: Record<DatabaseInstance["status"], StatusTone> = {
   healthy: "success",
@@ -17,18 +19,22 @@ const STATUS_TONES: Record<DatabaseInstance["status"], StatusTone> = {
   maintenance: "info"
 };
 
-const STATUS_LABELS: Record<DatabaseInstance["status"], string> = {
-  healthy: "В норме",
-  degraded: "Замедление",
-  critical: "Авария",
-  maintenance: "Обслуживание"
+const STATUS_LABELS: Record<DatabaseInstance["status"], { ru: string; en: string }> = {
+  healthy: { ru: "В норме", en: "Healthy" },
+  degraded: { ru: "Замедление", en: "Degraded" },
+  critical: { ru: "Авария", en: "Critical" },
+  maintenance: { ru: "Обслуживание", en: "Maintenance" }
 };
 
 type Props = {
   instances: DatabaseInstance[];
+  locale?: Locale;
 };
 
-export function InstancesTable({ instances }: Props) {
+export function InstancesTable({ instances, locale }: Props) {
+  const { locale: ctxLocale } = useLanguage();
+  const t = useTranslations();
+  const intlLocale = localeToIntl(locale ?? ctxLocale);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -41,13 +47,13 @@ export function InstancesTable({ instances }: Props) {
       <Table className="px-4">
         <TableHeader>
           <TableRow>
-            <TableHead>Кластер</TableHead>
-            <TableHead className="hidden lg:table-cell">Роль</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead className="hidden xl:table-cell">P95, мс</TableHead>
+            <TableHead>{t("Кластер", "Cluster")}</TableHead>
+            <TableHead className="hidden lg:table-cell">{t("Роль", "Role")}</TableHead>
+            <TableHead>{t("", "")}</TableHead>
+            <TableHead className="hidden xl:table-cell">P95, {t("мс", "ms")}</TableHead>
             <TableHead>QPS</TableHead>
-            <TableHead className="hidden xl:table-cell">Lag, мс</TableHead>
-            <TableHead>Хранилище</TableHead>
+            <TableHead className="hidden xl:table-cell">Lag, {t("мс", "ms")}</TableHead>
+            <TableHead>{t("Хранилище", "Storage")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -80,19 +86,21 @@ export function InstancesTable({ instances }: Props) {
               </TableCell>
               <TableCell>
                 <StatusBadge tone={STATUS_TONES[instance.status]}>
-                  {STATUS_LABELS[instance.status]}
+                  {t(STATUS_LABELS[instance.status].ru, STATUS_LABELS[instance.status].en)}
                 </StatusBadge>
               </TableCell>
-              <TableCell className="hidden xl:table-cell">{instance.latencyMsP95} мс</TableCell>
-              <TableCell>{instance.queriesPerSecond.toLocaleString("ru-RU")}</TableCell>
               <TableCell className="hidden xl:table-cell">
-                {instance.replicationLagMs} мс
+                {instance.latencyMsP95} {t("мс", "ms")}
+              </TableCell>
+              <TableCell>{instance.queriesPerSecond.toLocaleString(intlLocale)}</TableCell>
+              <TableCell className="hidden xl:table-cell">
+                {instance.replicationLagMs} {t("мс", "ms")}
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
                   <Progress value={instance.storageUsagePercent} />
                   <p className="text-xs text-muted-foreground">
-                    {instance.storageUsedGb} из {instance.storageTotalGb} ГБ
+                    {instance.storageUsedGb} {t("из", "of")} {instance.storageTotalGb} {t("ГБ", "GB")}
                   </p>
                 </div>
               </TableCell>
@@ -117,19 +125,27 @@ function InstanceModal({
   onClose: () => void;
 }) {
   if (!instance) return null;
+  const { locale } = useLanguage();
+  const intlLocale = localeToIntl(locale);
+  const t = useTranslations();
+  const statusLabel = t(STATUS_LABELS[instance.status].ru, STATUS_LABELS[instance.status].en);
 
   const issues: string[] = [];
   if (instance.status !== "healthy") {
-    issues.push(`Статус: ${STATUS_LABELS[instance.status]}`);
+    issues.push(
+      t(`${STATUS_LABELS[instance.status].ru}`, `${STATUS_LABELS[instance.status].en}`)
+    );
   }
   if (instance.replicationLagMs > 0) {
-    issues.push(`Репликационный lag: ${instance.replicationLagMs} мс`);
+    issues.push(t(`Репликационный lag: ${instance.replicationLagMs} мс`, `Replication lag: ${instance.replicationLagMs} ms`));
   }
   if (instance.storageUsagePercent >= 85) {
-    issues.push(`Хранилище: ${instance.storageUsagePercent}%`);
+    issues.push(
+      t(`Хранилище: ${instance.storageUsagePercent}%`, `Storage: ${instance.storageUsagePercent}%`)
+    );
   }
   if (instance.error) {
-    issues.push(`Ошибка проверки: ${instance.error}`);
+    issues.push(t(`Ошибка проверки: ${instance.error}`, `Check error: ${instance.error}`));
   }
 
   const hasIssues = issues.length > 0;
@@ -152,12 +168,12 @@ function InstanceModal({
           {hasIssues ? (
             <>
               <Info className="h-4 w-4 text-amber-500" />
-              Ответ проверки кластера
+              {t("Ответ проверки кластера", "Cluster check result")}
             </>
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Все проверки успешны
+              {t("Все проверки успешны", "All checks passed")}
             </>
           )}
         </div>
@@ -167,24 +183,28 @@ function InstanceModal({
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <InfoRow label="Статус">
+          <InfoRow label={t("", "")}>
             <StatusBadge tone={STATUS_TONES[instance.status]}>
-              {STATUS_LABELS[instance.status]}
+              {statusLabel}
             </StatusBadge>
           </InfoRow>
-          <InfoRow label="P95 задержка">{instance.latencyMsP95} мс</InfoRow>
-          <InfoRow label="QPS">{instance.queriesPerSecond.toLocaleString("ru-RU")}</InfoRow>
-          <InfoRow label="Подключений">{instance.connections.toLocaleString("ru-RU")}</InfoRow>
-          <InfoRow label="Репликационный lag">{instance.replicationLagMs} мс</InfoRow>
-          <InfoRow label="Последний бэкап">{instance.lastBackup || "—"}</InfoRow>
-          <InfoRow label="Хранилище">
-            {instance.storageUsedGb} / {instance.storageTotalGb} ГБ · {instance.storageUsagePercent}%
+          <InfoRow label={t("P95 задержка", "P95 latency")}>
+            {instance.latencyMsP95} {t("мс", "ms")}
           </InfoRow>
-          <InfoRow label="Uptime ответа">{STATUS_LABELS[instance.status]}</InfoRow>
+          <InfoRow label="QPS">{instance.queriesPerSecond.toLocaleString(intlLocale)}</InfoRow>
+          <InfoRow label={t("Подключений", "Connections")}>{instance.connections.toLocaleString(intlLocale)}</InfoRow>
+          <InfoRow label={t("Репликационный lag", "Replication lag")}>
+            {instance.replicationLagMs} {t("мс", "ms")}
+          </InfoRow>
+          <InfoRow label={t("Последний бэкап", "Last backup")}>{instance.lastBackup || "—"}</InfoRow>
+          <InfoRow label={t("Хранилище", "Storage")}>
+            {instance.storageUsedGb} / {instance.storageTotalGb} {t("ГБ", "GB")} · {instance.storageUsagePercent}%
+          </InfoRow>
+          <InfoRow label="Uptime">{statusLabel}</InfoRow>
         </div>
 
         <div className="mt-4">
-          <p className="text-sm font-semibold">Детали</p>
+          <p className="text-sm font-semibold">{t("Детали", "Details")}</p>
           {hasIssues ? (
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               {issues.map((issue) => (
@@ -194,7 +214,7 @@ function InstanceModal({
           ) : (
             <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Проблем не обнаружено — кластер в порядке</span>
+              <span>{t("Проблем не обнаружено — кластер в порядке", "No issues found — cluster is healthy")}</span>
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, TrendingUp } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SiteSeriesMap } from "@/lib/report";
@@ -10,6 +11,7 @@ import { LatencyChart } from "@/components/charts/latency-chart";
 import { SuccessChart } from "@/components/charts/success-chart";
 
 export function PerformancePanel({ siteSeries }: { siteSeries: SiteSeriesMap }) {
+  const t = useTranslations();
   const siteKeys = useMemo(() => Object.keys(siteSeries), [siteSeries]);
   const [selectedSite, setSelectedSite] = useState<string>(() => siteKeys[0] ?? "all");
 
@@ -26,12 +28,12 @@ export function PerformancePanel({ siteSeries }: { siteSeries: SiteSeriesMap }) 
       <CardHeader>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Производительность</CardTitle>
-            <CardDescription>Данные из JSON</CardDescription>
+            <CardTitle>{t("Производительность", "Performance")}</CardTitle>
+            <CardDescription>{t("Данные из JSON", "Data from JSON")}</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
-              <TrendingUp className="h-4 w-4" /> Живая аналитика
+              <TrendingUp className="h-4 w-4" /> {t("Живая аналитика", "Live analytics")}
             </div>
             <div className="relative">
               <select
@@ -41,7 +43,7 @@ export function PerformancePanel({ siteSeries }: { siteSeries: SiteSeriesMap }) 
               >
                 {siteKeys.map((site) => (
                   <option key={site} value={site}>
-                    {site === "all" ? "Все сайты" : site}
+                    {site === "all" ? t("Все сайты", "All sites") : site}
                   </option>
                 ))}
               </select>
@@ -55,15 +57,15 @@ export function PerformancePanel({ siteSeries }: { siteSeries: SiteSeriesMap }) 
       <CardContent>
         <Tabs defaultValue="latency">
           <TabsList>
-            <TabsTrigger value="latency">Латентность</TabsTrigger>
-            <TabsTrigger value="success">Процент успеха</TabsTrigger>
+            <TabsTrigger value="latency">{t("Латентность", "Latency")}</TabsTrigger>
+            <TabsTrigger value="success">{t("Процент успеха", "Success rate")}</TabsTrigger>
           </TabsList>
           <TabsContent value="latency" className="mt-6">
             {current.latency.length ? (
               <LatencyChart data={current.latency} showAxisLabels={false} />
             ) : (
               <div className="flex h-[320px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                Нет данных для выбранного сайта
+                {t("Нет данных для выбранного сайта", "No data for the selected site")}
               </div>
             )}
           </TabsContent>

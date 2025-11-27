@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PackageCheck, PackageOpen, Sparkles } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { PackageUpdates, PackageSourceUpdates } from "@/lib/report";
@@ -16,6 +17,7 @@ type VersionsPanelProps = {
 type SourceKey = "python" | "node";
 
 export function VersionsPanel({ updates }: VersionsPanelProps) {
+  const t = useTranslations();
   const sources = useMemo(() => {
     const list: PackageSourceUpdates[] = [updates.python];
     if (updates.node && updates.node.enabled) {
@@ -38,8 +40,8 @@ export function VersionsPanel({ updates }: VersionsPanelProps) {
     <Card className="flex h-full max-h-[540px] flex-col">
       <CardHeader className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <CardTitle>Пакеты</CardTitle>
-          <CardDescription>Обновления зависимостей из отчета</CardDescription>
+          <CardTitle>{t("Пакеты", "Packages")}</CardTitle>
+          <CardDescription>{t("Обновления зависимостей из отчета", "Dependency updates from the report")}</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {sources.map((source) => (
@@ -70,10 +72,10 @@ export function VersionsPanel({ updates }: VersionsPanelProps) {
               <>
                 <div className="flex items-center justify-between rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
                   <div>
-                    Всего: <span className="font-semibold text-foreground">{activeSource.total}</span>
+                    {t("Всего", "Total")}: <span className="font-semibold text-foreground">{activeSource.total}</span>
                   </div>
                   <div>
-                    Обновлений: <span className="font-semibold text-foreground">{activeSource.updatesAvailable}</span> · Major:{" "}
+                    {t("Обновлений", "Updates")}: <span className="font-semibold text-foreground">{activeSource.updatesAvailable}</span> · Major:{" "}
                     <span className="font-semibold text-foreground">{activeSource.majorUpdates}</span>
                   </div>
                 </div>
@@ -90,18 +92,20 @@ export function VersionsPanel({ updates }: VersionsPanelProps) {
                       {pkg.projects?.length ? (
                         <p className="mt-1 text-xs text-muted-foreground/80">
                           {pkg.projects[0]}
-                          {pkg.projects.length > 1 ? ` и еще ${pkg.projects.length - 1}` : ""}
+                          {pkg.projects.length > 1 ? ` ${t("и еще", "and")} ${pkg.projects.length - 1}` : ""}
                         </p>
                       ) : null}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Нет обновлений для {activeSource.label}.</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("Нет обновлений для", "No updates for")} {activeSource.label}.
+                  </p>
                 )}
               </>
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4" /> Нет данных о пакетах.
+                <Sparkles className="h-4 w-4" /> {t("Нет данных о пакетах.", "No package data.")}
               </div>
             )}
           </div>

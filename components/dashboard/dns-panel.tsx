@@ -3,20 +3,22 @@
 import { useState } from "react";
 import { Globe, ShieldAlert, X } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DnsResult } from "@/lib/report";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "./status-badge";
 
 export function DnsPanel({ results }: { results: DnsResult[] }) {
+  const t = useTranslations();
   const [selected, setSelected] = useState<DnsResult | null>(null);
 
   return (
     <>
       <Card className="h-full">
         <CardHeader>
-          <CardTitle>DNS и домены</CardTitle>
-          <CardDescription>Проверка TTL, whois и записей</CardDescription>
+          <CardTitle>{t("DNS и домены", "DNS and domains")}</CardTitle>
+          <CardDescription>{t("Проверка TTL, whois и записей", "TTL, whois, and records checks")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[260px] pr-4">
@@ -52,7 +54,7 @@ export function DnsPanel({ results }: { results: DnsResult[] }) {
                   </div>
                   {item.whois && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Регистратор: {item.whois.registrar ?? "—"} · До {item.whois.expiration_date ?? "—"}
+                      {t("Регистратор", "Registrar")}: {item.whois.registrar ?? "—"} · {t("До", "Expires")}: {item.whois.expiration_date ?? "—"}
                     </p>
                   )}
                   <button
@@ -60,7 +62,7 @@ export function DnsPanel({ results }: { results: DnsResult[] }) {
                     onClick={() => setSelected(item)}
                     className="mt-3 text-xs font-semibold text-primary transition hover:text-primary/80 focus:outline-none"
                   >
-                    Подробнее
+                    {t("Подробнее", "Details")}
                   </button>
                 </div>
               ))}
@@ -68,12 +70,20 @@ export function DnsPanel({ results }: { results: DnsResult[] }) {
           </ScrollArea>
         </CardContent>
       </Card>
-      <DnsModal result={selected} onClose={() => setSelected(null)} />
+      <DnsModal result={selected} onClose={() => setSelected(null)} translate={t} />
     </>
   );
 }
 
-function DnsModal({ result, onClose }: { result: DnsResult | null; onClose: () => void }) {
+function DnsModal({
+  result,
+  onClose,
+  translate
+}: {
+  result: DnsResult | null;
+  onClose: () => void;
+  translate: ReturnType<typeof useTranslations>;
+}) {
   if (!result) return null;
 
   const entries = Object.entries(result.dns ?? {});
@@ -91,11 +101,12 @@ function DnsModal({ result, onClose }: { result: DnsResult | null; onClose: () =
         >
           <X className="h-4 w-4" />
         </button>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Детали DNS</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{translate("Детали DNS", "DNS details")}</p>
         <h3 className="text-2xl font-semibold">{result.domain}</h3>
         {result.whois && (
           <p className="mt-1 text-xs text-muted-foreground">
-            Регистратор: {result.whois.registrar ?? "—"} · До {result.whois.expiration_date ?? "—"}
+            {translate("Регистратор", "Registrar")}: {result.whois.registrar ?? "—"} · {translate("До", "Expires")}:{" "}
+            {result.whois.expiration_date ?? "—"}
           </p>
         )}
         <div className="mt-5 space-y-4 text-sm">
@@ -106,7 +117,7 @@ function DnsModal({ result, onClose }: { result: DnsResult | null; onClose: () =
                 return (
                   <div key={record}>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{record}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">Нет данных</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{translate("Нет данных", "No data")}</p>
                   </div>
                 );
               }
@@ -124,7 +135,7 @@ function DnsModal({ result, onClose }: { result: DnsResult | null; onClose: () =
               );
             })
           ) : (
-            <p className="text-sm text-muted-foreground">Нет дополнительных записей.</p>
+            <p className="text-sm text-muted-foreground">{translate("Нет дополнительных записей.", "No additional records.")}</p>
           )}
         </div>
       </div>

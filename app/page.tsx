@@ -10,6 +10,8 @@ import { DnsPanel } from "@/components/dashboard/dns-panel";
 import { VersionsPanel } from "@/components/dashboard/versions-panel";
 import { NetworkPanel } from "@/components/dashboard/network-panel";
 import { SensitivePathsPanel } from "@/components/dashboard/sensitive-paths-panel";
+import { createTranslator, formatDateTime } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n-server";
 import {
   buildLatencySeries,
   buildSiteSeries,
@@ -21,6 +23,8 @@ import {
 } from "@/lib/report";
 
 export default async function DashboardPage() {
+  const locale = resolveLocale();
+  const t = createTranslator(locale);
   const { latest: report, siteHistory } = await loadReport();
   const summary = buildSummary(report);
   const latency = buildLatencySeries(report);
@@ -29,7 +33,7 @@ export default async function DashboardPage() {
   const logs = getProblematicLogs(report);
   const network = report.checks.network;
   const sensitivePaths = report.checks.sensitive_paths;
-  const updatedAt = summary.generatedAt.toLocaleString("ru-RU", {
+  const updatedAt = formatDateTime(summary.generatedAt, locale, {
     dateStyle: "medium",
     timeStyle: "short"
   });
@@ -45,9 +49,11 @@ export default async function DashboardPage() {
         <div className="relative z-10 container space-y-8 py-10">
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-medium text-primary">Сервис online</p>
+              <p className="text-sm font-medium text-primary">{t("Сервис online", "Service online")}</p>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Данные из JSON · обновлено {updatedAt}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("Данные из JSON · обновлено", "Data from JSON · updated")} {updatedAt}
+              </p>
             </div>
             <DashboardActions />
           </header>

@@ -14,6 +14,8 @@ import {
   type DatabaseBackupJob,
   loadDatabaseMonitoringData
 } from "@/lib/databases";
+import { createTranslator, formatDateTime, type Locale } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n-server";
 import { InstancesTable } from "@/components/databases/instances-table";
 
 const ALERT_TONES: Record<DatabaseAlert["severity"], StatusTone> = {
@@ -29,8 +31,10 @@ const BACKUP_STATUS_LABEL: Record<DatabaseBackupJob["status"], string> = {
 };
 
 export default async function DatabasesPage() {
+  const locale = resolveLocale();
+  const t = createTranslator(locale);
   const data = await loadDatabaseMonitoringData();
-  const updatedAt = new Date(data.generatedAt).toLocaleString("ru-RU", {
+  const updatedAt = formatDateTime(data.generatedAt, locale, {
     dateStyle: "medium",
     timeStyle: "short"
   });
@@ -40,20 +44,22 @@ export default async function DatabasesPage() {
       <main className="flex-1 overflow-y-auto bg-gradient-to-b from-background via-background to-background">
         <AnimatedSection className="container space-y-8 py-10">
           <header className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">Мониторинг БД</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-primary">{t("Мониторинг БД", "Database monitoring")}</p>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Базы данных</h1>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t("Базы данных", "Databases")}</h1>
                 <p className="text-muted-foreground">
-                  Репликация, задержки чтения и расписания бэкапов. Обновлено {updatedAt}
+                  {t("Репликация, задержки чтения и расписания бэкапов. Обновлено", "Replication, read lag, and backup schedules. Updated")}{" "}
+                  {updatedAt}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge tone="info" className="w-fit">
-                  {data.summary.totalClusters} кластера · {data.summary.criticalAlerts} критических событий
+                  {data.summary.totalClusters} {t("кластера", "clusters")} · {data.summary.criticalAlerts}{" "}
+                  {t("критических событий", "critical alerts")}
                 </StatusBadge>
                 <Button asChild variant="outline" size="sm">
-                    <Link href="/settings?tab=supervisor">Настройки базы данных</Link>
+                  <Link href="/settings?tab=supervisor">{t("Настройки базы данных", "Database settings")}</Link>
                 </Button>
               </div>
             </div>
@@ -62,30 +68,30 @@ export default async function DatabasesPage() {
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               icon={<Database className="h-4 w-4 text-primary" />}
-              label="Кластеров под контролем"
+              label={t("Кластеров под контролем", "Clusters under control")}
               value={data.summary.totalClusters}
-              helper={`${data.summary.healthyClusters} в норме`}
+              helper={`${data.summary.healthyClusters} ${t("в норме", "healthy")}`}
               href="#db-instances"
             />
             <SummaryCard
               icon={<Activity className="h-4 w-4 text-primary" />}
-              label="Средняя задержка репликации"
-              value={`${data.summary.avgReplicationLagMs} мс`}
-              helper="Порог — 200 мс"
+              label={t("Средняя задержка репликации", "Avg replication lag")}
+              value={`${data.summary.avgReplicationLagMs} ${t("мс", "ms")}`}
+              helper={t("Порог — 200 мс", "Threshold — 200 ms")}
               href="#db-instances"
             />
             <SummaryCard
               icon={<ShieldAlert className="h-4 w-4 text-primary" />}
-              label="Обострений"
+              label={t("Обострений", "Incidents")}
               value={data.summary.criticalAlerts}
-              helper={`${data.summary.degradedClusters} кластера требуют внимания`}
+              helper={`${data.summary.degradedClusters} ${t("кластера требуют внимания", "clusters need attention")}`}
               href="#db-alerts"
             />
             <SummaryCard
               icon={<HardDrive className="h-4 w-4 text-primary" />}
-              label="Нагрузка на хранилище"
+              label={t("Нагрузка на хранилище", "Storage pressure")}
               value={`${data.summary.storagePressurePercent}%`}
-              helper="Среднее по всем инстансам"
+              helper={t("Среднее по всем инстансам", "Average across instances")}
               href="#db-backups"
             />
           </section>
@@ -94,11 +100,11 @@ export default async function DatabasesPage() {
             <div id="db-instances">
               <Card>
                 <CardHeader>
-                  <CardTitle>Инстансы</CardTitle>
-                  <CardDescription>Покрытие по регионам, роли и хранению</CardDescription>
+                  <CardTitle>{t("Инстансы", "Instances")}</CardTitle>
+                  <CardDescription>{t("Покрытие по регионам, роли и хранению", "Regions, roles, and storage coverage")}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <InstancesTable instances={data.instances} />
+                  <InstancesTable instances={data.instances} locale={locale} />
                 </CardContent>
               </Card>
             </div>
@@ -106,8 +112,8 @@ export default async function DatabasesPage() {
             <div id="db-alerts">
               <Card>
                 <CardHeader>
-                  <CardTitle>Алармы</CardTitle>
-                  <CardDescription>Последние сообщения от RDS/ClickHouse</CardDescription>
+                  <CardTitle>{t("Алармы", "Alarms")}</CardTitle>
+                  <CardDescription>{t("Последние сообщения от RDS/ClickHouse", "Latest RDS/ClickHouse messages")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {data.alerts.map((alert) => (
@@ -118,11 +124,11 @@ export default async function DatabasesPage() {
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground">{alert.message}</p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        {formatTimestamp(alert.createdAt)}
+                        {formatTimestamp(alert.createdAt, locale)}
                       </p>
                     </div>
                   ))}
-                  {!data.alerts.length ? <p className="text-sm text-muted-foreground">Событий нет</p> : null}
+                  {!data.alerts.length ? <p className="text-sm text-muted-foreground">{t("Событий нет", "No alerts")}</p> : null}
                 </CardContent>
               </Card>
             </div>
@@ -130,8 +136,8 @@ export default async function DatabasesPage() {
             <div id="db-backups">
               <Card>
                 <CardHeader>
-                  <CardTitle>Бэкапы</CardTitle>
-                  <CardDescription>Статус последних запусков</CardDescription>
+                  <CardTitle>{t("Бэкапы", "Backups")}</CardTitle>
+                  <CardDescription>{t("Статус последних запусков", "Latest run status")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 max-h-96 overflow-y-auto pr-1">
                   {data.backups.map((backup) => (
@@ -140,7 +146,7 @@ export default async function DatabasesPage() {
                         <p className="font-medium">{backup.target}</p>
                         <p className="text-xs text-muted-foreground">{backup.schedule}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Последний запуск · {formatTimestamp(backup.lastRun)}
+                          {t("Последний запуск", "Last run")} · {formatTimestamp(backup.lastRun, locale)}
                         </p>
                       </div>
                       <div className="text-right text-sm">
@@ -202,8 +208,8 @@ function SummaryCard({
   return card;
 }
 
-function formatTimestamp(value: string) {
-  return new Date(value).toLocaleString("ru-RU", {
+function formatTimestamp(value: string, locale: Locale) {
+  return formatDateTime(value, locale, {
     hour: "2-digit",
     minute: "2-digit",
     day: "2-digit",

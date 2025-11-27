@@ -10,7 +10,7 @@ const MAIN_REPORT_REGEX = /^report_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
 const SITE_FILE_REGEX =
   /^report_site-(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.json$/i;
 
-async function resolveReportPath() {
+async function resolveReportPath(): Promise<string | null> {
   const customPath = process.env.REPORT_JSON_PATH;
   if (customPath) {
     return path.isAbsolute(customPath) ? customPath : path.resolve(process.cwd(), customPath);
@@ -41,9 +41,7 @@ async function resolveReportPath() {
     return fallback;
   }
 
-  throw new Error(
-    "Не найден ни один файл отчета. Укажите REPORT_JSON_PATH или сгенерируйте отчет в папке output."
-  );
+  return null;
 }
 
 async function findLatestSiteReport() {
@@ -446,11 +444,15 @@ export async function loadReport(): Promise<LoadedReports> {
   const filePath = await resolveReportPath();
   const filesPerSite = await resolveSiteHistoryLimit();
   let latest: ServiceReport;
-  try {
-    const content = await fs.readFile(filePath, "utf-8");
-    latest = JSON.parse(content) as ServiceReport;
-  } catch (error) {
-    throw new Error(`Не удалось прочитать отчет по пути ${filePath}. Убедитесь, что скрипт Python сгенерировал JSON.`);
+  if (filePath) {
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      latest = JSON.parse(content) as ServiceReport;
+    } catch (error) {
+      throw new Error(`Не удалось прочитать отчет по пути ${filePath}. Убедитесь, что скрипт Python сгенерировал JSON.`);
+    }
+  } else {
+    latest = buildEmptyReport();
   }
 
   const siteHistory = await loadSiteHistory(filesPerSite);
@@ -459,6 +461,95 @@ export async function loadReport(): Promise<LoadedReports> {
     latest,
     siteHistory,
     filesPerSite
+  };
+}
+
+function buildEmptyReport(): ServiceReport {
+  const timestamp = new Date().toISOString();
+  return {
+    timestamp,
+    checks: {
+      api: {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        avg_response_time: 0,
+        results: []
+      },
+      pages: {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        avg_response_time: 0,
+        results: []
+      },
+      server: {
+        timestamp,
+        hostname: "n/a",
+        platform: "unknown",
+        overall_status: "ok",
+        cpu: {
+          percent: 0,
+          load_avg: [],
+          threshold: 0,
+          status: "ok"
+        },
+        memory: {
+          total: 0,
+          used: 0,
+          available: 0,
+          percent: 0,
+          threshold: 0,
+          status: "ok"
+        },
+        disk: {},
+        uptime: {
+          human: "—",
+          seconds: 0
+        },
+        network: {
+          bytes_sent: 0,
+          bytes_recv: 0,
+          packets_sent: 0,
+          packets_recv: 0
+        },
+        error: null
+      },
+      versions: {
+        total_packages: 0,
+        up_to_date: 0,
+        updates_available: 0,
+        major_updates_available: 0,
+        check_failed: 0,
+        packages: []
+      },
+      logs: {
+        total_files: 0,
+        processed_files: 0,
+        failed_files: 0,
+        files: []
+      },
+      dns: {
+        total_domains: 0,
+        errors: 0,
+        results: []
+      },
+      network: {
+        enabled: false,
+        overall_status: "unknown",
+        ports: { total_targets: 0, open: 0, closed_or_timeout: 0, results: [] },
+        tcp: { total_checks: 0, successful: 0, failed: 0, results: [] },
+        smtp: { total_servers: 0, successful: 0, failed: 0, results: [] },
+        certificates: { total_hosts: 0, ok: 0, warn: 0, expired: 0, results: [] }
+      },
+      sensitive_paths: {
+        enabled: false,
+        total_checked: 0,
+        exposed: 0,
+        errors: 0,
+        results: []
+      }
+    }
   };
 }
 

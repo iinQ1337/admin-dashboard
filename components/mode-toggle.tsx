@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { useTranslations } from "@/components/language-provider";
 
 const ICON_VARIANTS = {
   initial: { rotate: -15, opacity: 0, scale: 0.95 },
@@ -26,6 +27,7 @@ const ICON_VARIANTS = {
 
 export function ModeToggle() {
   const { setTheme, theme } = useTheme();
+  const t = useTranslations();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -46,16 +48,16 @@ export function ModeToggle() {
               <IconComponent className="h-4 w-4" />
             </motion.span>
           </AnimatePresence>
-          <span className="sr-only">Переключить тему</span>
+          <span className="sr-only">{t("Переключить тему", "Toggle theme")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Тема</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("Тема", "Theme")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={currentTheme} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light">Светлая</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">Тёмная</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">Системная</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="light">{t("Светлая", "Light")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">{t("Тёмная", "Dark")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">{t("Системная", "System")}</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

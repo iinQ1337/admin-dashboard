@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 
+import { useLanguage, useTranslations } from "@/components/language-provider";
 import { StatusBadge, type StatusTone } from "@/components/dashboard/status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DockerContainer, DockerEvent } from "@/lib/docker";
+import { localeToIntl } from "@/lib/i18n";
 
 const CONTAINER_STATUS_TONE: Record<DockerContainer["status"], StatusTone> = {
   running: "success",
@@ -28,11 +30,15 @@ type Props = {
 };
 
 export function ContainerTable({ containers, events }: Props) {
+  const { locale } = useLanguage();
+  const t = useTranslations();
+  const intlLocale = localeToIntl(locale);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const selected = useMemo(
-    () => containers.find((item) => item.id === selectedId) ?? null,
-    [containers, selectedId]
+  const selected = useMemo(() => containers.find((item) => item.id === selectedId) ?? null, [containers, selectedId]);
+  const selectedIssues = useMemo(
+    () => (selected ? getContainerIssues(selected, events, t) : []),
+    [selected, events, t]
   );
 
   return (
@@ -40,18 +46,17 @@ export function ContainerTable({ containers, events }: Props) {
       <Table className="px-4">
         <TableHeader>
           <TableRow>
-            <TableHead>Сервис</TableHead>
-            <TableHead className="hidden lg:table-cell">Статус</TableHead>
+            <TableHead>{t("Сервис", "Service")}</TableHead>
+            <TableHead className="hidden lg:table-cell">{t("", "")}</TableHead>
             <TableHead>Health</TableHead>
             <TableHead>CPU</TableHead>
-            <TableHead className="hidden xl:table-cell">Память</TableHead>
-            <TableHead className="hidden lg:table-cell">Перезапуски</TableHead>
-            <TableHead>Порты</TableHead>
+            <TableHead className="hidden xl:table-cell">{t("Память", "Memory")}</TableHead>
+            <TableHead className="hidden lg:table-cell">{t("Перезапуски", "Restarts")}</TableHead>
+            <TableHead>{t("Порты", "Ports")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {containers.map((container) => {
-            const issues = getContainerIssues(container, events);
             const openModal = () => setSelectedId(container.id);
 
             return (
@@ -96,7 +101,7 @@ export function ContainerTable({ containers, events }: Props) {
                   <div className="space-y-1">
                     <Progress value={getMemoryPercent(container)} />
                     <p className="text-xs text-muted-foreground">
-                      {container.memoryUsageMb} / {container.memoryLimitMb} МБ
+                      {container.memoryUsageMb} / {container.memoryLimitMb} {t("МБ", "MB")}
                     </p>
                   </div>
                 </TableCell>
@@ -111,7 +116,9 @@ export function ContainerTable({ containers, events }: Props) {
       <ContainerModal
         container={selected}
         events={events}
-        issues={selected ? getContainerIssues(selected, events) : []}
+        issues={selectedIssues}
+        intlLocale={intlLocale}
+        t={t}
         onClose={() => setSelectedId(null)}
       />
     </>
@@ -123,10 +130,14 @@ function getMemoryPercent(container: DockerContainer) {
   return Math.round((container.memoryUsageMb / container.memoryLimitMb) * 100);
 }
 
-function getContainerIssues(container: DockerContainer, events: DockerEvent[]): string[] {
+function getContainerIssues(
+  container: DockerContainer,
+  events: DockerEvent[],
+  t: ReturnType<typeof useTranslations>
+): string[] {
   const issues: string[] = [];
   if (container.status !== "running") {
-    issues.push(`Status: ${container.status}`);
+    issues.push(`${t("", "")}: ${container.status}`);
   }
   if (container.health !== "passing") {
     issues.push(`Health: ${container.health}`);
@@ -142,11 +153,15 @@ function ContainerModal({
   container,
   issues,
   events,
+  intlLocale,
+  t,
   onClose
 }: {
   container: DockerContainer | null;
   issues: string[];
   events: DockerEvent[];
+  intlLocale: "ru-RU" | "en-US";
+  t: ReturnType<typeof useTranslations>;
   onClose: () => void;
 }) {
   if (!container) return null;
@@ -174,12 +189,12 @@ function ContainerModal({
           {hasIssues ? (
             <>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Проблемы контейнера
+              {t("Проблемы контейнера", "Container issues")}
             </>
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Все проверки успешны
+              {t("Все проверки успешны", "All checks passed")}
             </>
           )}
         </div>
@@ -187,24 +202,24 @@ function ContainerModal({
         <p className="text-xs text-muted-foreground">{container.image} · {container.node}</p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <InfoRow label="Статус">
+          <InfoRow label={t("", "")}>
             <StatusBadge tone={CONTAINER_STATUS_TONE[container.status]}>{container.status}</StatusBadge>
           </InfoRow>
           <InfoRow label="Health">
             <StatusBadge tone={HEALTH_TONE[container.health]}>{container.health}</StatusBadge>
           </InfoRow>
-          <InfoRow label="Перезапуски">{container.restarts}</InfoRow>
-          <InfoRow label="Порты">{container.ports || "—"}</InfoRow>
+          <InfoRow label={t("Перезапуски", "Restarts")}>{container.restarts}</InfoRow>
+          <InfoRow label={t("Порты", "Ports")}>{container.ports || "—"}</InfoRow>
           <InfoRow label="CPU">{container.cpuPercent}%</InfoRow>
-          <InfoRow label="Память">
-            {container.memoryUsageMb} / {container.memoryLimitMb || "—"} МБ
+          <InfoRow label={t("Память", "Memory")}>
+            {container.memoryUsageMb} / {container.memoryLimitMb || "—"} {t("МБ", "MB")}
           </InfoRow>
           <InfoRow label="Uptime">{container.uptime}</InfoRow>
-          <InfoRow label="Обновлено">{new Date(container.updatedAt).toLocaleString("ru-RU")}</InfoRow>
+          <InfoRow label={t("Обновлено", "Updated")}>{new Date(container.updatedAt).toLocaleString(intlLocale)}</InfoRow>
         </div>
 
         <div className="mt-4">
-          <p className="text-sm font-semibold">Детали</p>
+          <p className="text-sm font-semibold">{t("Детали", "Details")}</p>
           {hasIssues ? (
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               {issues.map((issue) => (
@@ -214,21 +229,21 @@ function ContainerModal({
           ) : (
             <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Проблем не обнаружено — контейнер в порядке</span>
+              <span>{t("Проблем не обнаружено — контейнер в порядке", "No issues found — container is healthy")}</span>
             </div>
           )}
         </div>
 
         {scopedEvents.length ? (
           <div className="mt-4">
-            <p className="text-sm font-semibold">События</p>
+            <p className="text-sm font-semibold">{t("События", "Events")}</p>
             <div className="mt-2 space-y-2 text-sm text-muted-foreground">
               {scopedEvents.map((event) => (
                 <div key={event.id} className="rounded-lg border border-border/60 p-3">
                   <p className="font-medium">{event.type}</p>
                   <p>{event.message}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(event.timestamp).toLocaleString("ru-RU")}
+                    {new Date(event.timestamp).toLocaleString(intlLocale)}
                   </p>
                 </div>
               ))}

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useTranslations } from "@/components/language-provider";
 import { cn } from "@/lib/utils";
 
 import { DASHBOARD_NAV_LINKS } from "./nav-links";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const t = useTranslations();
 
   return (
     <nav className="sticky top-0 z-20 border-b border-border/60 bg-background/90 px-4 py-3 backdrop-blur md:hidden">
@@ -17,6 +19,7 @@ export function MobileNav() {
           const isActive =
             pathname === link.href ||
             (link.href !== "/" && pathname.startsWith(link.href));
+          const label = t(link.label.ru, link.label.en);
           return (
             <Link
               key={link.href}
@@ -29,7 +32,7 @@ export function MobileNav() {
               )}
             >
               <link.icon className="h-4 w-4" />
-              {link.label}
+              {label}
             </Link>
           );
         })}

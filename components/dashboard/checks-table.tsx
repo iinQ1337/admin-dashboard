@@ -6,6 +6,7 @@ import { Globe, Server, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useTranslations } from "@/components/language-provider";
 import type { ApiChecks, ApiResult, PageChecks, PageResult } from "@/lib/report";
 import { cn } from "@/lib/utils";
 import { StatusBadge as ToneBadge } from "./status-badge";
@@ -13,6 +14,7 @@ import { StatusBadge as ToneBadge } from "./status-badge";
 type CombinedRow = (ApiResult & { category: "API" }) | (PageResult & { category: "Page" });
 
 export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks }) {
+  const t = useTranslations();
   const apiRows = api.results.map((item) => ({ ...item, category: "API" as const })) as CombinedRow[];
   const pageRows = pages.results.map((item) => ({ ...item, category: "Page" as const })) as CombinedRow[];
   const rows = [...apiRows, ...pageRows].slice(0, 8);
@@ -27,18 +29,18 @@ export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks 
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
-        <CardTitle>Последние проверки</CardTitle>
+        <CardTitle>{t("Последние проверки", "Latest checks")}</CardTitle>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col">
         <div className="relative flex-1" style={{ minHeight: 0 }}>
           <Table className="min-h-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Тип</TableHead>
+                <TableHead>{t("Тип", "Type")}</TableHead>
                 <TableHead>URL</TableHead>
-                <TableHead className="hidden md:table-cell">Метод</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Латентность</TableHead>
+                <TableHead className="hidden md:table-cell">{t("Метод", "Method")}</TableHead>
+                <TableHead>{t("Статус", "Status")}</TableHead>
+                <TableHead>{t("Латентность", "Latency")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -63,7 +65,9 @@ export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks 
                     <TableCell>
                       <ResultStatusBadge success={row.success} code={row.status} error={row.error} />
                     </TableCell>
-                    <TableCell>{row.response_time.toFixed(1)} мс</TableCell>
+                    <TableCell>
+                      {row.response_time.toFixed(1)} {t("мс", "ms")}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -71,16 +75,17 @@ export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks 
           </Table>
         </div>
       </CardContent>
-      <ApiResponseModal response={selectedResponse} onClose={() => setSelectedResponse(null)} />
+      <ApiResponseModal response={selectedResponse} onClose={() => setSelectedResponse(null)} translate={t} />
     </Card>
   );
 }
 
 function ResultStatusBadge({ success, code, error }: { success: boolean; code: number; error?: string | null }) {
+  const t = useTranslations();
   return (
     <div className={cn("relative", !success && "group")}>
       <ToneBadge tone={success ? "success" : "danger"} className="text-xs uppercase tracking-wide">
-        {success ? "OK" : "Ошибка"} · {code}
+        {success ? "OK" : t("Ошибка", "Error")} · {code}
       </ToneBadge>
       {!success && error ? (
         <div className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-w-[260px] rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-xl opacity-0 invisible transition-opacity duration-200 group-hover:visible group-hover:opacity-100">
@@ -91,7 +96,15 @@ function ResultStatusBadge({ success, code, error }: { success: boolean; code: n
   );
 }
 
-function ApiResponseModal({ response, onClose }: { response: ApiResult | null; onClose: () => void }) {
+function ApiResponseModal({
+  response,
+  onClose,
+  translate
+}: {
+  response: ApiResult | null;
+  onClose: () => void;
+  translate: ReturnType<typeof useTranslations>;
+}) {
   if (!response?.response_preview) return null;
 
   return (
@@ -107,9 +120,11 @@ function ApiResponseModal({ response, onClose }: { response: ApiResult | null; o
         >
           <X className="h-4 w-4" />
         </button>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Ответ сервера</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{translate("Ответ сервера", "Server response")}</p>
         <h3 className="text-xl font-semibold">{response.method} {response.url}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">Статус: {response.status} · {response.response_time.toFixed(1)} мс</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {translate("", "")}: {response.status} · {response.response_time.toFixed(1)} {translate("мс", "ms")}
+        </p>
         <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-muted/40 p-4 text-xs font-mono">
           {response.response_preview}
         </pre>

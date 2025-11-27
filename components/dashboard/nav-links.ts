@@ -1,42 +1,48 @@
 import type { LucideIcon } from "lucide-react";
+import type { Route } from "next";
 import { Boxes, Database, LayoutDashboard, Terminal, AlarmClock } from "lucide-react";
 
+export type TranslatedText = {
+  ru: string;
+  en: string;
+};
+
 export type DashboardNavLink = {
-  label: string;
-  href: string;
-  description: string;
+  label: TranslatedText;
+  href: Route;
+  description: TranslatedText;
   icon: LucideIcon;
 };
 
 export const DASHBOARD_NAV_LINKS: DashboardNavLink[] = [
   {
-    label: "Обзор",
+    label: { ru: "Обзор", en: "Overview" },
     href: "/",
-    description: "Главная панель и ключевые виджеты",
+    description: { ru: "Главная панель и ключевые виджеты", en: "Main dashboard and key widgets" },
     icon: LayoutDashboard
   },
   {
-    label: "Базы данных",
+    label: { ru: "Базы данных", en: "Databases" },
     href: "/databases",
-    description: "Репликация, бэкапы и задержки",
+    description: { ru: "Репликация, бэкапы и задержки", en: "Replication, backups, and lag" },
     icon: Database
   },
   {
-    label: "Docker",
+    label: { ru: "Docker", en: "Docker" },
     href: "/docker",
-    description: "Контейнеры, узлы и последние события",
+    description: { ru: "Контейнеры, узлы и последние события", en: "Containers, nodes, and cluster events" },
     icon: Boxes
   },
   {
-    label: "Queue Monitoring",
+    label: { ru: "Очереди", en: "Queue Monitoring" },
     href: "/queues",
-    description: "Мониторинг очередей задач и рабочих процессов",
+    description: { ru: "Мониторинг очередей задач и рабочих процессов", en: "Queues, workers, and task pipelines" },
     icon: AlarmClock
   },
   {
-    label: "Supervisor",
+    label: { ru: "Supervisor", en: "Supervisor" },
     href: "/supervisor",
-    description: "Запуски внешних процессов и их логи",
+    description: { ru: "Запуски внешних процессов и их логи", en: "External processes and their logs" },
     icon: Terminal
   }
 ];

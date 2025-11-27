@@ -9,9 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { loadSupervisorData } from "@/lib/supervisor";
+import { createTranslator, formatDateTime, localeToIntl } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n-server";
 import { cn } from "@/lib/utils";
 
 export default async function SupervisorPage() {
+  const locale = resolveLocale();
+  const t = createTranslator(locale);
+  const intlLocale = localeToIntl(locale);
   const data = await loadSupervisorData();
 
   return (
@@ -19,20 +24,20 @@ export default async function SupervisorPage() {
       <main className="flex-1 overflow-y-auto bg-gradient-to-b from-background via-background to-background">
         <AnimatedSection className="container space-y-8 py-10">
           <header className="space-y-2">
-            <p className="text-sm font-medium uppercase tracking-wide text-primary">Инфраструктура</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-primary">{t("Инфраструктура", "Infrastructure")}</p>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Supervisor</h1>
                 <p className="text-muted-foreground">
-                  Последние прогоны внешних процессов, stdout/stderr и exit-коды
+                  {t("Последние прогоны внешних процессов, stdout/stderr и exit-коды", "Latest external runs, stdout/stderr, and exit codes")}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge tone={data.summary.failed ? "danger" : "success"} className="w-fit">
-                  {data.summary.total} процессов · {data.summary.failed} с ошибками
+                  {data.summary.total} {t("процессов", "processes")} · {data.summary.failed} {t("с ошибками", "with errors")}
                 </StatusBadge>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/settings?tab=supervisor">Настройки супервизора</Link>
+                  <Link href="/settings?tab=supervisor">{t("Настройки супервизора", "Supervisor settings")}</Link>
                 </Button>
               </div>
             </div>
@@ -41,29 +46,29 @@ export default async function SupervisorPage() {
           <section className="grid gap-4 md:grid-cols-4">
             <SummaryCard
               icon={<Server className="h-4 w-4 text-primary" />}
-              label="Всего процессов"
+              label={t("Всего процессов", "Total processes")}
               value={data.summary.total}
-              helper={`${data.summary.healthy} здоровых`}
+              helper={`${data.summary.healthy} ${t("здоровых", "healthy")}`}
             />
             <SummaryCard
               icon={<Activity className="h-4 w-4 text-primary" />}
-              label="Активны"
+              label={t("Активны", "Running")}
               value={data.summary.running}
-              helper="exit_code == null и без ошибок"
+              helper={t("exit_code == null и без ошибок", "exit_code == null and no errors")}
               variant={data.summary.running ? "default" : "muted"}
             />
             <SummaryCard
               icon={<AlertTriangle className="h-4 w-4 text-primary" />}
-              label="С ошибками"
+              label={t("С ошибками", "Failed")}
               value={data.summary.failed}
-              helper="exit_code != 0 / force stop"
+              helper={t("exit_code != 0 / force stop", "exit_code != 0 / force stop")}
               variant={data.summary.failed ? "danger" : "muted"}
             />
             <SummaryCard
               icon={<RefreshCw className="h-4 w-4 text-primary" />}
-              label="Всего рестартов"
+              label={t("Всего рестартов", "Total restarts")}
               value={data.summary.restarts}
-              helper="Сумма restart_count"
+              helper={t("Сумма restart_count", "Sum of restart_count")}
               variant={data.summary.restarts ? "default" : "muted"}
             />
           </section>
@@ -75,9 +80,9 @@ export default async function SupervisorPage() {
               const stdoutPreview = proc.stdout.slice(-5);
               const stderrPreview = proc.stderr.slice(-5);
               const statusTone = hasError ? "danger" : isRunning ? "info" : "success";
-              const statusLabel = hasError ? "Ошибка / стоп" : isRunning ? "Работает" : "OK";
+              const statusLabel = hasError ? t("Ошибка / стоп", "Error / stopped") : isRunning ? t("Работает", "Running") : "OK";
               const resource = proc.resourceUsage;
-              const lastActivity = formatLastActivity(proc.lastActivityTs);
+              const lastActivity = formatLastActivity(proc.lastActivityTs, intlLocale);
 
               return (
                 <Card key={`${proc.name}-${proc.sourcePath}`} className="overflow-hidden">
@@ -93,7 +98,9 @@ export default async function SupervisorPage() {
                         </StatusBadge>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>Команда: {proc.command || "—"}</span>
+                        <span>
+                          {t("Команда", "Command")}: {proc.command || "—"}
+                        </span>
                         {proc.workingDir ? <Badge variant="outline">cwd: {proc.workingDir}</Badge> : null}
                         {proc.pid ? <Badge variant="outline">PID: {proc.pid}</Badge> : null}
                       </div>
@@ -102,8 +109,8 @@ export default async function SupervisorPage() {
                       <Clock className="h-3.5 w-3.5" />
                       <span>
                         {proc.startedAt
-                          ? new Date(proc.startedAt).toLocaleString("ru-RU")
-                          : "Время неизвестно"}
+                          ? formatDateTime(proc.startedAt, locale, { dateStyle: "short", timeStyle: "short" })
+                          : t("Время неизвестно", "Time unknown")}
                       </span>
                     </div>
                   </CardHeader>
@@ -113,10 +120,10 @@ export default async function SupervisorPage() {
                         exit_code: {proc.exitCode ?? "—"}
                       </Badge>
                       <Badge variant="outline">
-                        длительность: {proc.durationSeconds != null ? `${proc.durationSeconds}s` : "—"}
+                        {t("длительность", "duration")}: {proc.durationSeconds != null ? `${proc.durationSeconds}s` : "—"}
                       </Badge>
                       <Badge variant="outline" className="border-border/70 text-muted-foreground">
-                        рестартов: {proc.restartCount ?? 0}
+                        {t("рестартов", "restarts")}: {proc.restartCount ?? 0}
                       </Badge>
                       {proc.restartReason ? (
                         <Badge variant="outline" className="border-primary/50 text-primary">
@@ -137,7 +144,7 @@ export default async function SupervisorPage() {
 
                     <div className="grid gap-4 md:grid-cols-3">
                       <MetricCard
-                        title="Ресурсы"
+                        title={t("Ресурсы", "Resources")}
                         icon={<Gauge className="h-4 w-4 text-primary" />}
                         items={[
                           { label: "CPU", value: resource?.cpuPercent != null ? `${resource.cpuPercent}%` : "—" },
@@ -146,44 +153,45 @@ export default async function SupervisorPage() {
                         ]}
                       />
                       <MetricCard
-                        title="Сеть"
+                        title={t("Сеть", "Network")}
                         icon={<Activity className="h-4 w-4 text-primary" />}
                         items={[
                           {
-                            label: "Интернет",
+                            label: t("Интернет", "Internet"),
                             value: (() => {
                               const internet = resource?.internetConnected;
                               if (internet === null || internet === undefined) return "—";
                               return internet ? "online" : "offline";
                             })()
                           },
-                          { label: "Последняя активность", value: lastActivity }
+                          { label: t("Последняя активность", "Last activity"), value: lastActivity }
                         ]}
                       />
                       <MetricCard
-                        title="Логи"
+                        title={t("Логи", "Logs")}
                         icon={<FileText className="h-4 w-4 text-primary" />}
                         items={[
-                          { label: "stdout", value: `${stdoutPreview.length} строк` },
-                          { label: "stderr", value: `${stderrPreview.length} строк` }
+                          { label: "stdout", value: `${stdoutPreview.length} ${t("строк", "lines")}` },
+                          { label: "stderr", value: `${stderrPreview.length} ${t("строк", "lines")}` }
                         ]}
                       />
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <LogBlock title="stdout" lines={stdoutPreview} emptyText="Нет вывода" />
+                      <LogBlock title="stdout" lines={stdoutPreview} emptyText={t("Нет вывода", "No output")} translate={t} />
                       <LogBlock
                         title="stderr"
                         lines={stderrPreview}
-                        emptyText="Нет ошибок"
+                        emptyText={t("Нет ошибок", "No errors")}
                         tone={stderrPreview.length ? "danger" : "muted"}
+                        translate={t}
                       />
                     </div>
 
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <FileText className="h-3.5 w-3.5" />
                       <span className="truncate" title={proc.sourcePath}>
-                        Лог: {proc.sourcePath}
+                        {t("Лог", "Log")}: {proc.sourcePath}
                       </span>
                     </div>
                   </CardContent>
@@ -193,9 +201,12 @@ export default async function SupervisorPage() {
             {!data.processes.length ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Нет данных супервизора</CardTitle>
+                  <CardTitle>{t("Нет данных супервизора", "No supervisor data")}</CardTitle>
                   <CardDescription>
-                    Проверьте конфиг `supervisor.enabled` и наличие файлов *_latest.json в output/supervisor.
+                    {t(
+                      "Проверьте конфиг `supervisor.enabled` и наличие файлов *_latest.json в output/supervisor.",
+                      "Check `supervisor.enabled` and the *_latest.json files in output/supervisor."
+                    )}
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -244,12 +255,14 @@ function LogBlock({
   title,
   lines,
   emptyText,
-  tone = "default"
+  tone = "default",
+  translate
 }: {
   title: string;
   lines: string[];
   emptyText: string;
   tone?: "default" | "danger" | "muted";
+  translate: ReturnType<typeof createTranslator>;
 }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/50">
@@ -263,7 +276,7 @@ function LogBlock({
             tone === "muted" ? "border-border text-muted-foreground" : ""
           )}
         >
-          {lines.length ? `${lines.length} строк` : "нет данных"}
+          {lines.length ? `${lines.length} ${translate("строк", "lines")}` : translate("нет данных", "no data")}
         </Badge>
       </div>
       <div className="max-h-52 space-y-1 overflow-y-auto px-4 py-3 text-xs font-mono text-muted-foreground">
@@ -309,14 +322,14 @@ function MetricCard({
   );
 }
 
-function formatLastActivity(value: string | number | null): string {
+function formatLastActivity(value: string | number | null, intlLocale: "ru-RU" | "en-US"): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "number") {
     return `t=${Math.round(value)}s`;
   }
   const date = new Date(value);
   if (!isNaN(date.getTime())) {
-    return date.toLocaleTimeString("ru-RU");
+    return date.toLocaleTimeString(intlLocale);
   }
   return String(value);
 }

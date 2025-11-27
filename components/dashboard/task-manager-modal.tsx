@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage, useTranslations } from "@/components/language-provider";
+import { localeToIntl } from "@/lib/i18n";
 import { cn, formatBytes } from "@/lib/utils";
 
 type MetricPoint = {
@@ -56,6 +58,9 @@ type TaskManagerModalProps = {
 const POLL_INTERVAL = 2500;
 
 export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps) {
+  const { locale } = useLanguage();
+  const intlLocale = localeToIntl(locale);
+  const t = useTranslations();
   const [mounted, setMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +95,7 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
           setError(null);
         } else {
           const details = payload.details ? ` (${payload.details})` : "";
-          setError((payload.error ?? "Сервис недоступен") + details);
+          setError((payload.error ?? t("Сервис недоступен", "Service unavailable")) + details);
         }
       } catch (err) {
         if (!aborted) {
@@ -122,9 +127,9 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
   }, [open, onClose]);
 
   const formattedUpdatedAt = useMemo(() => {
-    if (!snapshot?.timestamp) return "нет данных";
+    if (!snapshot?.timestamp) return t("нет данных", "no data");
     try {
-      return new Date(snapshot.timestamp).toLocaleTimeString("ru-RU", {
+      return new Date(snapshot.timestamp).toLocaleTimeString(intlLocale, {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
@@ -132,7 +137,7 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
     } catch {
       return snapshot.timestamp;
     }
-  }, [snapshot?.timestamp]);
+  }, [snapshot?.timestamp, intlLocale, t]);
 
   useEffect(() => {
     if (!killMessage) return;
@@ -160,10 +165,17 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
       });
       const payload = await response.json();
       if (response.ok && payload.success) {
-        setKillMessage({ type: "success", text: `Процесс ${pid} завершён сигналом ${payload.signal ?? "SIGTERM"}` });
+        const signal = payload.signal ?? "SIGTERM";
+        setKillMessage({
+          type: "success",
+          text: t(`Процесс ${pid} завершён сигналом ${signal}`, `Process ${pid} terminated with signal ${signal}`)
+        });
         setRefreshTick((tick) => tick + 1);
       } else {
-        setKillMessage({ type: "error", text: payload.error ?? "Не удалось завершить процесс" });
+        setKillMessage({
+          type: "error",
+          text: payload.error ?? t("Не удалось завершить процесс", "Unable to terminate process")
+        });
       }
     } catch (err) {
       setKillMessage({ type: "error", text: (err as Error).message });
@@ -179,7 +191,8 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
   const cpuHistory = snapshot?.cpu?.history ?? [];
   const memoryHistory = snapshot?.memory?.history ?? [];
   const status = snapshot?.status ?? (error ? "offline" : "connecting");
-  const statusLabel = status === "ok" ? "Онлайн" : status === "connecting" ? "Подключение..." : "Оффлайн";
+  const statusLabel =
+    status === "ok" ? t("Онлайн", "Online") : status === "connecting" ? t("Подключение...", "Connecting...") : t("Оффлайн", "Offline");
   const badgeVariant = status === "ok" ? "secondary" : status === "connecting" ? "outline" : "destructive";
   const badgeTint =
     status === "ok"
@@ -201,14 +214,16 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Activity className="h-3.5 w-3.5" /> Live Task Manager
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight">Ресурсы сервера</h2>
-            <p className="text-sm text-muted-foreground">Обновлено: {formattedUpdatedAt}</p>
+            <h2 className="text-2xl font-semibold tracking-tight">{t("Ресурсы сервера", "Server resources")}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t("Обновлено:", "Updated:")} {formattedUpdatedAt}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant={badgeVariant} className={cn("px-4 py-1 text-xs", badgeTint)}>
               {statusLabel}
             </Badge>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t("Закрыть", "Close")}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -224,16 +239,16 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
                   <Cpu className="h-4 w-4" /> CPU
                 </TabsTrigger>
                 <TabsTrigger value="memory" className="gap-2">
-                  <MemoryStick className="h-4 w-4" /> Память
+                  <MemoryStick className="h-4 w-4" /> {t("Память", "Memory")}
                 </TabsTrigger>
                 <TabsTrigger value="processes" className="gap-2">
-                  <Activity className="h-4 w-4" /> Процессы
+                  <Activity className="h-4 w-4" /> {t("Процессы", "Processes")}
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="cpu">
                 {snapshot?.cpu ? (
                   <MetricPanel
-                    title="Загрузка CPU"
+                    title={t("Загрузка CPU", "CPU load")}
                     percent={snapshot.cpu.percent}
                     history={cpuHistory}
                     perCore={snapshot.cpu.per_core}
@@ -247,7 +262,7 @@ export function TaskManagerModal({ open, focus, onClose }: TaskManagerModalProps
               <TabsContent value="memory">
                 {snapshot?.memory ? (
                   <MetricPanel
-                    title="Использование памяти"
+                    title={t("Использование памяти", "Memory usage")}
                     percent={snapshot.memory.percent}
                     history={memoryHistory}
                     memoryMeta={{
@@ -293,15 +308,19 @@ type MetricPanelProps = {
 };
 
 function MetricPanel({ title, percent, history, perCore, loadAvg, memoryMeta, accent }: MetricPanelProps) {
+  const { locale } = useLanguage();
+  const intlLocale = localeToIntl(locale);
+  const t = useTranslations();
   const formattedHistory = useMemo(
     () =>
       history.map((point) => ({
         ...point,
-        label: formatTime(point.ts)
+        label: formatTime(point.ts, intlLocale)
       })),
-    [history]
+    [history, intlLocale]
   );
   const normalizedLoadAvg = Array.isArray(loadAvg) ? loadAvg : [];
+  const loadLabels = locale === "en" ? ["1m", "5m", "15m"] : ["1м", "5м", "15м"];
 
   return (
     <div className="rounded-2xl border border-border/60 bg-gradient-to-b p-5 shadow-sm">
@@ -309,7 +328,7 @@ function MetricPanel({ title, percent, history, perCore, loadAvg, memoryMeta, ac
         <p className="text-sm text-white/80">{title}</p>
         <div className="flex items-end gap-3">
           <span className="text-4xl font-semibold">{percent.toFixed(1)}%</span>
-          <span className="text-xs uppercase tracking-wide text-white/70">сейчас</span>
+          <span className="text-xs uppercase tracking-wide text-white/70">{t("сейчас", "now")}</span>
         </div>
       </div>
       <div className="mt-4 h-48">
@@ -320,7 +339,7 @@ function MetricPanel({ title, percent, history, perCore, loadAvg, memoryMeta, ac
           {perCore.map((value, index) => (
             <div key={index} className="rounded-xl border border-border/60 bg-card/60 p-3">
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                Ядро {index + 1}
+                {t("Ядро", "Core")} {index + 1}
                 <span>{value.toFixed(1)}%</span>
               </div>
               <Progress value={value} className="mt-2" />
@@ -330,7 +349,7 @@ function MetricPanel({ title, percent, history, perCore, loadAvg, memoryMeta, ac
       ) : null}
       {normalizedLoadAvg.length ? (
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-          {["1м", "5м", "15м"].map((label, idx) => (
+          {loadLabels.map((label, idx) => (
             <span key={label} className="rounded-full border border-dashed px-3 py-1">
               {label}: {typeof normalizedLoadAvg[idx] === "number" ? normalizedLoadAvg[idx]!.toFixed(2) : "—"}
             </span>
@@ -339,9 +358,9 @@ function MetricPanel({ title, percent, history, perCore, loadAvg, memoryMeta, ac
       ) : null}
       {memoryMeta ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <MemoryTile label="Используется" value={formatBytes(memoryMeta.used)} icon={<Gauge className="h-4 w-4" />} />
-          <MemoryTile label="Доступно" value={formatBytes(memoryMeta.available)} icon={<MemoryStick className="h-4 w-4" />} />
-          <MemoryTile label="Всего" value={formatBytes(memoryMeta.total)} icon={<Cpu className="h-4 w-4" />} />
+          <MemoryTile label={t("Используется", "Used")} value={formatBytes(memoryMeta.used)} icon={<Gauge className="h-4 w-4" />} />
+          <MemoryTile label={t("Доступно", "Available")} value={formatBytes(memoryMeta.available)} icon={<MemoryStick className="h-4 w-4" />} />
+          <MemoryTile label={t("Всего", "Total")} value={formatBytes(memoryMeta.total)} icon={<Cpu className="h-4 w-4" />} />
         </div>
       ) : null}
     </div>
@@ -389,9 +408,10 @@ function MetricChart({ data }: { data: (MetricPoint & { label: string })[] }) {
 }
 
 function EmptyState() {
+  const t = useTranslations();
   return (
     <div className="flex h-full min-h-[200px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-      Нет данных
+      {t("Нет данных", "No data")}
     </div>
   );
 }
@@ -407,12 +427,13 @@ function ProcessesPanel({
   killingPid: number | null;
   message: { type: "success" | "error"; text: string } | null;
 }) {
+  const t = useTranslations();
   return (
     <div className="rounded-2xl border border-border/70 bg-card/70 p-4">
       <div className="mb-3 flex items-center justify-between text-sm font-medium">
-        Топ процессов
+        {t("Топ процессов", "Top processes")}
         <Badge variant="outline" className="text-xs">
-          {processes.length} шт.
+          {processes.length} {t("шт.", "items")}
         </Badge>
       </div>
       {message ? (
@@ -447,12 +468,12 @@ function ProcessesPanel({
                     className="gap-1 px-2 text-destructive hover:text-destructive disabled:opacity-50"
                   >
                     {killingPid === proc.pid ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleOff className="h-3.5 w-3.5" />}
-                    Завершить
+                    {t("Завершить", "Terminate")}
                   </Button>
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <UsageStat label="CPU" percent={proc.cpu} />
-                  <UsageStat label="Память" percent={proc.memory} />
+                  <UsageStat label={t("Память", "Memory")} percent={proc.memory} />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {proc.user ? <span>{proc.user}</span> : null}
@@ -465,7 +486,7 @@ function ProcessesPanel({
               </div>
             ))
           ) : (
-            <p className="text-xs text-muted-foreground">Нет данных о процессах</p>
+            <p className="text-xs text-muted-foreground">{t("Нет данных о процессах", "No process data")}</p>
           )}
         </div>
       </ScrollArea>
@@ -486,9 +507,9 @@ function UsageStat({ label, percent }: { label: string; percent: number }) {
   );
 }
 
-function formatTime(value: string) {
+function formatTime(value: string, intlLocale: "ru-RU" | "en-US") {
   try {
-    return new Date(value).toLocaleTimeString("ru-RU", {
+    return new Date(value).toLocaleTimeString(intlLocale, {
       minute: "2-digit",
       second: "2-digit"
     });

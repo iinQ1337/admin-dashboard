@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActivitySquare, KeyRound, MailWarning, PlugZap, ShieldAlert, SignalHigh, Wifi, X } from "lucide-react";
 
+import { useTranslations } from "@/components/language-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +18,7 @@ const STATUS_TONE_MAP: Record<string, StatusTone> = {
 };
 
 export function NetworkPanel({ network }: { network: NetworkCheck }) {
+  const t = useTranslations();
   const [selectedCert, setSelectedCert] = useState<CertificateResult | null>(null);
   const statusTone = STATUS_TONE_MAP[network.overall_status] ?? "info";
 
@@ -24,18 +26,18 @@ export function NetworkPanel({ network }: { network: NetworkCheck }) {
     <Card className="h-full">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <CardTitle>Сеть</CardTitle>
-          <CardDescription>Порты, TCP, SMTP и TLS-сертификаты</CardDescription>
+          <CardTitle>{t("Сеть", "Network")}</CardTitle>
+          <CardDescription>{t("Порты, TCP, SMTP и TLS-сертификаты", "Ports, TCP, SMTP, and TLS certificates")}</CardDescription>
         </div>
         <StatusBadge tone={statusTone} className="uppercase tracking-wide">
-          Статус: {network.overall_status}
+          {network.overall_status}
         </StatusBadge>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="ports" className="space-y-4">
           <TabsList>
             <TabsTrigger value="ports" className="gap-2">
-              <PlugZap className="h-4 w-4" /> Порты
+              <PlugZap className="h-4 w-4" /> {t("Порты", "Ports")}
             </TabsTrigger>
             <TabsTrigger value="tcp" className="gap-2">
               <Wifi className="h-4 w-4" /> TCP
@@ -51,9 +53,9 @@ export function NetworkPanel({ network }: { network: NetworkCheck }) {
           <TabsContent value="ports">
             <SummaryGrid
               items={[
-                { label: "Целей", value: network.ports.total_targets },
-                { label: "Открыто", value: network.ports.open },
-                { label: "Закрыто / timeout", value: network.ports.closed_or_timeout }
+                { label: t("Целей", "Targets"), value: network.ports.total_targets },
+                { label: t("Открыто", "Open"), value: network.ports.open },
+                { label: t("Закрыто / timeout", "Closed / timeout"), value: network.ports.closed_or_timeout }
               ]}
             />
             <PortList results={network.ports.results} />
@@ -62,9 +64,9 @@ export function NetworkPanel({ network }: { network: NetworkCheck }) {
           <TabsContent value="tcp">
             <SummaryGrid
               items={[
-                { label: "Чеков", value: network.tcp.total_checks },
-                { label: "Успешно", value: network.tcp.successful },
-                { label: "Ошибок", value: network.tcp.failed }
+                { label: t("Чеков", "Checks"), value: network.tcp.total_checks },
+                { label: t("Успешно", "Success"), value: network.tcp.successful },
+                { label: t("Ошибок", "Errors"), value: network.tcp.failed }
               ]}
             />
             <TcpList results={network.tcp.results} />
@@ -73,9 +75,9 @@ export function NetworkPanel({ network }: { network: NetworkCheck }) {
           <TabsContent value="smtp">
             <SummaryGrid
               items={[
-                { label: "Серверов", value: network.smtp.total_servers },
-                { label: "Успешно", value: network.smtp.successful },
-                { label: "Ошибок", value: network.smtp.failed }
+                { label: t("Серверов", "Servers"), value: network.smtp.total_servers },
+                { label: t("Успешно", "Success"), value: network.smtp.successful },
+                { label: t("Ошибок", "Errors"), value: network.smtp.failed }
               ]}
             />
             <SmtpList results={network.smtp.results} />
@@ -84,8 +86,8 @@ export function NetworkPanel({ network }: { network: NetworkCheck }) {
           <TabsContent value="certs">
             <SummaryGrid
               items={[
-                { label: "Хостов", value: network.certificates.total_hosts },
-                { label: "Ок", value: network.certificates.ok },
+                { label: t("Хостов", "Hosts"), value: network.certificates.total_hosts },
+                { label: "Ok", value: network.certificates.ok },
                 { label: "Warn", value: network.certificates.warn }
               ]}
             />
@@ -112,6 +114,7 @@ function SummaryGrid({ items }: { items: { label: string; value: number }[] }) {
 }
 
 function PortList({ results }: { results: PortResult[] }) {
+  const t = useTranslations();
   return (
     <ScrollArea className="mt-4 h-[240px] pr-4">
       <div className="space-y-3">
@@ -122,11 +125,13 @@ function PortList({ results }: { results: PortResult[] }) {
                 <p className="font-medium">
                   {result.host}:{result.port}
                 </p>
-                <p className="text-xs text-muted-foreground">Латентность: {result.latency_ms.toFixed(1)} мс</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("Латентность", "Latency")}: {result.latency_ms.toFixed(1)} {t("мс", "ms")}
+                </p>
               </div>
               <StatusBadge tone={result.open ? "success" : "danger"} className="gap-1 text-xs uppercase">
                 {result.open ? <SignalHigh className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-                {result.open ? "Открыт" : "Закрыт"}
+                {result.open ? t("Открыт", "Open") : t("Закрыт", "Closed")}
               </StatusBadge>
             </div>
             {result.error ? <p className="mt-2 text-xs text-destructive">{result.error}</p> : null}
@@ -138,6 +143,7 @@ function PortList({ results }: { results: PortResult[] }) {
 }
 
 function TcpList({ results }: { results: TcpResult[] }) {
+  const t = useTranslations();
   return (
     <ScrollArea className="mt-4 h-[240px] pr-4">
       <div className="space-y-3">
@@ -148,10 +154,12 @@ function TcpList({ results }: { results: TcpResult[] }) {
                 <p className="font-medium">
                   {result.host}:{result.port} {result.use_tls ? "· TLS" : ""}
                 </p>
-                <p className="text-xs text-muted-foreground">Латентность: {result.latency_ms.toFixed(1)} мс</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("Латентность", "Latency")}: {result.latency_ms.toFixed(1)} {t("мс", "ms")}
+                </p>
               </div>
               <StatusBadge tone={result.success ? "success" : "danger"} className="text-xs uppercase">
-                {result.success ? "OK" : "Ошибка"}
+                {result.success ? "OK" : t("Ошибка", "Error")}
               </StatusBadge>
             </div>
             {result.response_preview ? (
@@ -167,6 +175,7 @@ function TcpList({ results }: { results: TcpResult[] }) {
 }
 
 function SmtpList({ results }: { results: SmtpResult[] }) {
+  const t = useTranslations();
   return (
     <ScrollArea className="mt-4 h-[240px] pr-4">
       <div className="space-y-3">
@@ -182,7 +191,7 @@ function SmtpList({ results }: { results: SmtpResult[] }) {
                 </p>
               </div>
               <StatusBadge tone={result.success ? "success" : "danger"} className="text-xs uppercase">
-                {result.success ? "OK" : "Проблема"}
+                {result.success ? "OK" : t("Проблема", "Issue")}
               </StatusBadge>
             </div>
             {result.error ? <p className="mt-2 text-xs text-destructive">{result.error}</p> : null}
@@ -207,6 +216,7 @@ function SmtpList({ results }: { results: SmtpResult[] }) {
 }
 
 function CertificateList({ results, onSelect }: { results: CertificateResult[]; onSelect: (result: CertificateResult) => void }) {
+  const t = useTranslations();
   return (
     <ScrollArea className="mt-4 h-[240px] pr-4">
       <div className="space-y-3">
@@ -218,17 +228,18 @@ function CertificateList({ results, onSelect }: { results: CertificateResult[]; 
                   {result.host}:{result.port}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Действует до: {result.not_after ?? "—"} · Осталось: {result.days_remaining ?? "—"} дн.
+                  {t("Действует до", "Valid until")}: {result.not_after ?? "—"} · {t("Осталось", "Days left")}: {result.days_remaining ?? "—"}{" "}
+                  {t("дн.", "days")}
                 </p>
               </div>
               <StatusBadge tone={result.error ? "danger" : "info"} className="gap-1 text-xs uppercase">
                 {result.error ? (
                   <>
-                    <ShieldAlert className="h-3.5 w-3.5" /> Ошибка
+                    <ShieldAlert className="h-3.5 w-3.5" /> {t("Ошибка", "Error")}
                   </>
                 ) : (
                   <>
-                    <ActivitySquare className="h-3.5 w-3.5" /> Проверено
+                    <ActivitySquare className="h-3.5 w-3.5" /> {t("Проверено", "Checked")}
                   </>
                 )}
               </StatusBadge>
@@ -246,7 +257,7 @@ function CertificateList({ results, onSelect }: { results: CertificateResult[]; 
               onClick={() => onSelect(result)}
               className="mt-3 text-xs font-semibold text-primary transition hover:text-primary/80 focus:outline-none"
             >
-              Подробнее
+              {t("Подробнее", "Details")}
             </button>
           </div>
         ))}
@@ -256,6 +267,7 @@ function CertificateList({ results, onSelect }: { results: CertificateResult[]; 
 }
 
 function CertificateModal({ result, onClose }: { result: CertificateResult | null; onClose: () => void }) {
+  const t = useTranslations();
   if (!result) return null;
 
   return (
@@ -271,17 +283,17 @@ function CertificateModal({ result, onClose }: { result: CertificateResult | nul
         >
           <X className="h-4 w-4" />
         </button>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">TLS сертификат</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">TLS {t("сертификат", "certificate")}</p>
         <h3 className="text-2xl font-semibold">
           {result.host}:{result.port}
         </h3>
         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-          <p>Issuer: {result.issuer ?? "—"}</p>
-          <p>Subject: {result.subject ?? "—"}</p>
+          <p>{t("Issuer", "Issuer")}: {result.issuer ?? "—"}</p>
+          <p>{t("Subject", "Subject")}: {result.subject ?? "—"}</p>
           <p>
-            Not before: {result.not_before ?? "—"} · Not after: {result.not_after ?? "—"}
+            {t("Not before", "Not before")}: {result.not_before ?? "—"} · {t("Not after", "Not after")}: {result.not_after ?? "—"}
           </p>
-          <p>Days remaining: {result.days_remaining ?? "—"}</p>
+          <p>{t("Осталось дней", "Days remaining")}: {result.days_remaining ?? "—"}</p>
         </div>
         {result.error ? <p className="mt-3 text-xs text-destructive">{result.error}</p> : null}
         {result.san?.length ? (
