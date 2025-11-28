@@ -29,7 +29,10 @@ type DashboardTheme = {
 
 export const metadata: Metadata = {
   title: "Service Health Dashboard",
-  description: "Живая админ панель для мониторинга Python-сервиса без базы данных"
+  description: "Live dashboard for monitoring health and status of your services",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
