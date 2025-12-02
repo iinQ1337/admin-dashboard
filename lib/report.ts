@@ -2,9 +2,10 @@ import fs from "fs/promises";
 import path from "path";
 import YAML from "yaml";
 
-const DEFAULT_REPORT_PATH = path.resolve(process.cwd(), "../output/report_2025-11-09_23-36-42.json");
+const DEFAULT_REPORT_PATH = path.resolve(process.cwd(), "../output/report.json");
 const OUTPUT_DIR = path.resolve(process.cwd(), "../output");
 const CONFIG_PATH = path.resolve(process.cwd(), "../config.yaml");
+const HOT_REPORT_FILES = ["report_latest.json", "latest_checks.json"];
 
 const MAIN_REPORT_REGEX = /^report_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
 const SITE_FILE_REGEX =
@@ -21,6 +22,11 @@ async function resolveReportPath(): Promise<string | null> {
     return DEFAULT_REPORT_PATH;
   } catch {
     // ignore and search for the latest generated report instead
+  }
+
+  const hotCandidate = await resolveHotReportFile();
+  if (hotCandidate) {
+    return hotCandidate;
   }
 
   try {
@@ -41,6 +47,19 @@ async function resolveReportPath(): Promise<string | null> {
     return fallback;
   }
 
+  return null;
+}
+
+async function resolveHotReportFile(): Promise<string | null> {
+  for (const name of HOT_REPORT_FILES) {
+    const candidate = path.join(OUTPUT_DIR, name);
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
   return null;
 }
 

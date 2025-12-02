@@ -11,6 +11,7 @@ import { StatusBadge } from "./status-badge";
 
 export function SensitivePathsPanel({ data }: { data: SensitivePathsCheck }) {
   const t = useTranslations();
+  const results = data.results || [];
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -38,31 +39,37 @@ export function SensitivePathsPanel({ data }: { data: SensitivePathsCheck }) {
         </div>
         <ScrollArea className="h-[260px] pr-4">
           <div className="space-y-3">
-            {data.results.map((item, index) => (
-              <div key={`${item.url}-${index}`} className="rounded-xl border bg-card/60 p-4 text-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{item.path}</p>
-                    <p className="text-xs text-muted-foreground">{item.base_url}</p>
+            {results.length === 0 ? (
+              <p className="rounded-xl border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                {t("Пока нет данных от бэкенда мониторинга.", "No data from the monitoring backend yet.")}
+              </p>
+            ) : (
+              results.map((item, index) => (
+                <div key={`${item.url}-${index}`} className="rounded-xl border bg-card/60 p-4 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{item.path}</p>
+                      <p className="text-xs text-muted-foreground">{item.base_url}</p>
+                    </div>
+                    <StatusBadge tone={item.exposed ? "danger" : "info"} className="gap-1 text-xs uppercase">
+                      {item.exposed ? (
+                        <>
+                          <ShieldX className="h-3.5 w-3.5" /> {t("Доступен", "Exposed")}
+                        </>
+                      ) : (
+                        <>
+                          <FolderDot className="h-3.5 w-3.5" /> {t("Скрыт", "Hidden")}
+                        </>
+                      )}
+                    </StatusBadge>
                   </div>
-                  <StatusBadge tone={item.exposed ? "danger" : "info"} className="gap-1 text-xs uppercase">
-                    {item.exposed ? (
-                      <>
-                        <ShieldX className="h-3.5 w-3.5" /> {t("Доступен", "Exposed")}
-                      </>
-                    ) : (
-                      <>
-                        <FolderDot className="h-3.5 w-3.5" /> {t("Скрыт", "Hidden")}
-                      </>
-                    )}
-                  </StatusBadge>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t("Статус", "Status")}: {item.status ?? "—"} · {item.url}
+                  </p>
+                  {item.error ? <p className="mt-1 text-xs text-destructive">{t("Ошибка", "Error")}: {item.error}</p> : null}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t("Статус", "Status")}: {item.status ?? "—"} · {item.url}
-                </p>
-                {item.error ? <p className="mt-1 text-xs text-destructive">{t("Ошибка", "Error")}: {item.error}</p> : null}
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </ScrollArea>
       </CardContent>

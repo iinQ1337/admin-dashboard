@@ -15,9 +15,11 @@ type CombinedRow = (ApiResult & { category: "API" }) | (PageResult & { category:
 
 export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks }) {
   const t = useTranslations();
-  const apiRows = api.results.map((item) => ({ ...item, category: "API" as const })) as CombinedRow[];
-  const pageRows = pages.results.map((item) => ({ ...item, category: "Page" as const })) as CombinedRow[];
+  const apiRows = (api.results || []).map((item) => ({ ...item, category: "API" as const })) as CombinedRow[];
+  const pageRows = (pages.results || []).map((item) => ({ ...item, category: "Page" as const })) as CombinedRow[];
   const rows = [...apiRows, ...pageRows].slice(0, 8);
+  const totalCount = apiRows.length + pageRows.length;
+  const failedCount = rows.filter((row) => !row.success).length;
   const [selectedResponse, setSelectedResponse] = useState<ApiResult | null>(null);
 
   function handleRowClick(row: CombinedRow) {
@@ -28,8 +30,21 @@ export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks 
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader>
-        <CardTitle>{t("Последние проверки", "Latest checks")}</CardTitle>
+      <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <CardTitle>{t("Последние проверки", "Latest checks")}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {t("Срез из горячего хранилища", "Snapshot from hot storage")} · {totalCount || "0"} {t("записей", "entries")}
+          </p>
+        </div>
+        <Badge
+          variant={failedCount ? "destructive" : "secondary"}
+          className="w-fit whitespace-nowrap text-xs uppercase tracking-wide"
+        >
+          {failedCount
+            ? t(`Проблем: ${failedCount}`, `Issues: ${failedCount}`)
+            : t("Все зеленое", "All green")}
+        </Badge>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col">
         <div className="relative flex-1" style={{ minHeight: 0 }}>
@@ -44,33 +59,41 @@ export function ChecksTable({ api, pages }: { api: ApiChecks; pages: PageChecks 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
-                const isApiWithPreview = row.category === "API" && !!row.response_preview;
-                return (
-                  <TableRow
-                    key={`${row.url}-${row.method}`}
-                    className={cn(
-                      "transition",
-                      isApiWithPreview && "cursor-pointer hover:bg-muted/40"
-                    )}
-                    onClick={() => isApiWithPreview && handleRowClick(row)}
-                  >
-                    <TableCell className="font-medium">
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        {row.category === "API" ? <Server className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />} {row.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">{row.url}</TableCell>
-                    <TableCell className="hidden text-xs text-muted-foreground md:table-cell">{row.method}</TableCell>
-                    <TableCell>
-                      <ResultStatusBadge success={row.success} code={row.status} error={row.error} />
-                    </TableCell>
-                    <TableCell>
-                      {row.response_time.toFixed(1)} {t("мс", "ms")}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                    {t("Нет свежих результатов. Ожидаем данные из сервиса мониторинга.", "No fresh results yet. Waiting for the monitoring service to push data.")}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((row) => {
+                  const isApiWithPreview = row.category === "API" && !!row.response_preview;
+                  return (
+                    <TableRow
+                      key={`${row.url}-${row.method}`}
+                      className={cn(
+                        "transition",
+                        isApiWithPreview && "cursor-pointer hover:bg-muted/40"
+                      )}
+                      onClick={() => isApiWithPreview && handleRowClick(row)}
+                    >
+                      <TableCell className="font-medium">
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          {row.category === "API" ? <Server className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />} {row.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">{row.url}</TableCell>
+                      <TableCell className="hidden text-xs text-muted-foreground md:table-cell">{row.method}</TableCell>
+                      <TableCell>
+                        <ResultStatusBadge success={row.success} code={row.status} error={row.error} />
+                      </TableCell>
+                      <TableCell>
+                        {row.response_time.toFixed(1)} {t("мс", "ms")}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>

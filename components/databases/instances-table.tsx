@@ -57,55 +57,63 @@ export function InstancesTable({ instances, locale }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {instances.map((instance) => (
-            <TableRow
-              key={instance.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedId(instance.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setSelectedId(instance.id);
-                }
-              }}
-              className="cursor-pointer transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <TableCell>
-                <div className="space-y-1">
-                  <p className="font-medium">{instance.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {instance.engine} {instance.version} · {instance.region}
-                  </p>
-                </div>
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <Badge className="capitalize border-none bg-muted/60 text-muted-foreground">
-                  {instance.role}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <StatusBadge tone={STATUS_TONES[instance.status]}>
-                  {t(STATUS_LABELS[instance.status].ru, STATUS_LABELS[instance.status].en)}
-                </StatusBadge>
-              </TableCell>
-              <TableCell className="hidden xl:table-cell">
-                {instance.latencyMsP95} {t("мс", "ms")}
-              </TableCell>
-              <TableCell>{instance.queriesPerSecond.toLocaleString(intlLocale)}</TableCell>
-              <TableCell className="hidden xl:table-cell">
-                {instance.replicationLagMs} {t("мс", "ms")}
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <Progress value={instance.storageUsagePercent} />
-                  <p className="text-xs text-muted-foreground">
-                    {instance.storageUsedGb} {t("из", "of")} {instance.storageTotalGb} {t("ГБ", "GB")}
-                  </p>
-                </div>
+          {instances.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                {t("Нет данных по инстансам. Подождите обновления из сервиса или проверьте конфиг.", "No instances yet. Wait for the next refresh or check the config.")}
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            instances.map((instance) => (
+              <TableRow
+                key={instance.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedId(instance.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedId(instance.id);
+                  }
+                }}
+                className="cursor-pointer transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <TableCell>
+                  <div className="space-y-1">
+                    <p className="font-medium">{instance.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {instance.engine} {instance.version} · {instance.region}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <Badge className="capitalize border-none bg-muted/60 text-muted-foreground">
+                    {instance.role}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge tone={STATUS_TONES[instance.status]}>
+                    {t(STATUS_LABELS[instance.status].ru, STATUS_LABELS[instance.status].en)}
+                  </StatusBadge>
+                </TableCell>
+                <TableCell className="hidden xl:table-cell">
+                  {instance.latencyMsP95} {t("мс", "ms")}
+                </TableCell>
+                <TableCell>{instance.queriesPerSecond.toLocaleString(intlLocale)}</TableCell>
+                <TableCell className="hidden xl:table-cell">
+                  {instance.replicationLagMs} {t("мс", "ms")}
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <Progress value={instance.storageUsagePercent} />
+                    <p className="text-xs text-muted-foreground">
+                      {instance.storageUsedGb} {t("из", "of")} {instance.storageTotalGb} {t("ГБ", "GB")}
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
 
